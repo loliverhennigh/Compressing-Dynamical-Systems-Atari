@@ -18,8 +18,10 @@ import input.ring_net_input as ring_net_input
 FLAGS = tf.app.flags.FLAGS
 
 # Constants describing the training process.
-tf.app.flags.DEFINE_string('model', 'fully_connected_28x28x4',
+tf.app.flags.DEFINE_string('model', 'lstm_210x160x12',
                            """ model name to train """)
+tf.app.flags.DEFINE_string('atari_game', 'space_invaders.bin',
+                            """atari game to run""")
 tf.app.flags.DEFINE_string('system', 'cannon',
                            """ system to compress """)
 tf.app.flags.DEFINE_float('moving_average_decay', 0.9999,
@@ -49,13 +51,10 @@ def inputs(batch_size, seq_length):
   Return:
     x: input vector, may be filled 
   """
-  if FLAGS.system == "cannon":
-    x = ring_net_input.cannon_inputs(batch_size, seq_length)
-  elif FLAGS.system == "video":
-    x = ring_net_input.video_inputs(batch_size, seq_length)
-  return x
+  state, reward, action = ring_net_input.atari_inputs(batch_size, seq_length)
+  return state, reward, action 
 
-def encoding(inputs, keep_prob):
+def encoding(state, keep_prob):
   """Builds encoding part of ring net.
   Args:
     inputs: input to encoder
@@ -64,17 +63,15 @@ def encoding(inputs, keep_prob):
   #--------- Making the net -----------
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice x_1 -> y_1
-  if FLAGS.model == "fully_connected_28x28x4" or FLAGS.model == "lstm_28x28x4": 
-    y_1 = architecture.encoding_28x28x4(inputs, keep_prob)
-  elif FLAGS.model == "fully_connected_84x84x4" or FLAGS.model == "lstm_84x84x4": 
-    y_1 = architecture.encoding_84x84x4(inputs, keep_prob)
-  elif FLAGS.model == "fully_connected_84x84x3" or FLAGS.model == "lstm_84x84x3": 
-    y_1 = architecture.encoding_84x84x3(inputs, keep_prob)
+  if FLAGS.model == "fully_connected_84x84x4" or FLAGS.model == "lstm_84x84x4": 
+    y_1 = architecture.encoding_84x84x4(state, keep_prob)
+  elif FLAGS.model == "fully_connected_210x160x12" or FLAGS.model == "lstm_210x160x12": 
+    y_1 = architecture.encoding_210x160x12(state, keep_prob)
 
   return y_1 
 
 
-def lstm_compression(inputs, hidden_state, keep_prob):
+def lstm_compression(inputs, action, hidden_state, keep_prob):
   """Builds compressed dynamical system part of the net.
   Args:
     inputs: input to system
@@ -83,15 +80,13 @@ def lstm_compression(inputs, hidden_state, keep_prob):
   #--------- Making the net -----------
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_1 -> y_2
-  if FLAGS.model == "lstm_28x28x4": 
-    y_2 = architecture.lstm_compression_28x28x4(inputs, hidden_state, keep_prob)
-  elif FLAGS.model == "lstm_84x84x4": 
-    y_2 = architecture.lstm_compression_84x84x4(inputs, hidden_state, keep_prob)
-  elif FLAGS.model == "lstm_84x84x3": 
-    y_2 = architecture.lstm_compression_84x84x3(inputs, hidden_state, keep_prob)
-  return y_2 
+  if FLAGS.model == "lstm_84x84x4": 
+    y_2, reward, hidden_state = architecture.lstm_compression_84x84x4(inputs, action, hidden_state, keep_prob)
+  elif FLAGS.model == "lstm_210x160x12": 
+    y_2, reward, hidden_state = architecture.lstm_compression_210x160x12(inputs, action, hidden_state, keep_prob)
+  return y_2, reward, hidden_state
 
-def compression(inputs, keep_prob):
+def compression(inputs, action, keep_prob):
   """Builds compressed dynamical system part of the net.
   Args:
     inputs: input to system
@@ -100,14 +95,12 @@ def compression(inputs, keep_prob):
   #--------- Making the net -----------
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_1 -> y_2
-  if FLAGS.model == "fully_connected_28x28x4": 
-    y_2 = architecture.compression_28x28x4(inputs, keep_prob)
-  elif FLAGS.model == "fully_connected_84x84x4": 
-    y_2 = architecture.compression_84x84x4(inputs, keep_prob)
-  elif FLAGS.model == "fully_connected_84x84x3": 
-    y_2 = architecture.compression_84x84x3(inputs, keep_prob)
+  if FLAGS.model == "fully_connected_84x84x4": 
+    y_2, output_reward = architecture.compression_84x84x4(inputs, action, keep_prob)
+  elif FLAGS.model == "fully_connected_210x160x12": 
+    y_2, output_reward = architecture.compression_210x160x12(inputs, action, keep_prob)
 
-  return y_2 
+  return y_2, predicted_reward 
 
 def decoding(inputs):
   """Builds decoding part of ring net.
@@ -117,16 +110,14 @@ def decoding(inputs):
   #--------- Making the net -----------
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_2 -> x_2
-  if FLAGS.model == "fully_connected_28x28x4" or FLAGS.model == "lstm_28x28x4": 
-    x_2 = architecture.decoding_28x28x4(inputs)
-  elif FLAGS.model == "fully_connected_84x84x4" or FLAGS.model == "lstm_84x84x4": 
+  if FLAGS.model == "fully_connected_84x84x4" or FLAGS.model == "lstm_84x84x4": 
     x_2 = architecture.decoding_84x84x4(inputs)
-  elif FLAGS.model == "fully_connected_84x84x3" or FLAGS.model == "lstm_84x84x3": 
-    x_2 = architecture.decoding_84x84x3(inputs)
+  elif FLAGS.model == "fully_connected_210x160x12" or FLAGS.model == "lstm_210x160x12": 
+    x_2 = architecture.decoding_210x160x12(inputs)
 
   return x_2 
 
-def unwrap(inputs, keep_prob, seq_length):
+def unwrap(state, action, keep_prob, seq_length):
   """Unrap the system for training.
   Args:
     inputs: input to system, should be [minibatch, seq_length, image_size]
@@ -139,14 +130,14 @@ def unwrap(inputs, keep_prob, seq_length):
     output_f: calculated y values from f 
   """
 
-  if FLAGS.model in ("fully_connected_28x28x4", "fully_connected_84x84x4", "fully_connected_84x84x3"): 
-    output_t, output_g, output_f = unwrap_helper.fully_connected_unwrap(inputs, keep_prob, seq_length)
-  elif FLAGS.model in ("lstm_28x28x4", "lstm_84x84x4", "lstm_84x84x3"):
-    output_t, output_g, output_f = unwrap_helper.lstm_unwrap(inputs, keep_prob, seq_length)
+  if FLAGS.model in ("fully_connected_84x84x4", "fully_connected_210x160x12"):
+    output_t, output_g, output_f, output_reward = unwrap_helper.fully_connected_unwrap(state, action, keep_prob, seq_length)
+  elif FLAGS.model in ("lstm_84x84x4", "lstm_210x160x12"):
+    output_t, output_g, output_f, output_reward = unwrap_helper.lstm_unwrap(state, action, keep_prob, seq_length)
 
-  return output_t, output_g, output_f 
+  return output_t, output_g, output_f, output_reward 
 
-def loss(inputs, output_t, output_g, output_f):
+def loss(state, reward, output_t, output_g, output_f, output_reward):
   """Calc loss for unrap output.
   Args.
     inputs: true x values
@@ -157,22 +148,33 @@ def loss(inputs, output_t, output_g, output_f):
   Return:
     error: loss value
   """
-  error_xg = tf.nn.l2_loss(output_g - inputs)
+  # calc encodeing error
+  error_xg = tf.nn.l2_loss(output_g - state)
   tf.scalar_summary('error_xg', error_xg)
+
   if output_f is not None:
+    # calc tf error
     # Scale the t f error based on the ratio of image size to compressed size. This has somewhat undetermined effects
-    if FLAGS.model in ("fully_connected_28x28x4", "lstm_28x28x4"):
-      scaling_factor = 50.0
-    elif FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
-      scaling_factor = 60.0
-    elif FLAGS.model in ("fully_connected_84x84x3", "lstm_84x84x3"):
-      scaling_factor = 30.0
-    error_tf = tf.mul(scaling_factor, tf.nn.l2_loss(output_f - output_t))
+    if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
+      tf_scaling_factor = 30.0
+    elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
+      tf_scaling_factor = 200.0
+    error_tf = tf.mul(tf_scaling_factor, tf.nn.l2_loss(output_f - output_t))
     tf.scalar_summary('error_tf', error_tf)
+    
+    # calc reward error 
+    # Scale the reward error based on the ratio of image size to reward size. This has somewhat undetermined effects
+    if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
+      reward_scaling_factor = 2800.0
+    elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
+      reward_scaling_factor = 400000.0
+    error_reward = tf.nn.l2_loss(reward[:,1:,:] - output_reward)
+    error_reward = tf.mul(reward_scaling_factor, error_reward)
+    tf.scalar_summary('error_reward', error_reward)
    
-    # either add up the two errors or train on the greator one.
-    #error = tf.add_n([error_tf, error_xg])
+    # either add up the two errors or train on the greator one. (play with this peice)
     error = tf.cond(error_tf > error_xg, lambda: error_tf, lambda: error_xg)
+    error = tf.add_n([error, error_reward])
   else:
     error = error_xg
   tf.scalar_summary('error', error)
@@ -180,11 +182,6 @@ def loss(inputs, output_t, output_g, output_f):
   tf.add_to_collection('losses', error)
   return tf.add_n(tf.get_collection('losses'), name='total_loss')
 
-def l2_loss(output, correct_output):
-  """Calcs the loss for the model"""
-  error = tf.nn.l2_loss(output - correct_output)
-  return error
- 
 def train(total_loss, lr):
    train_op = tf.train.AdamOptimizer(lr).minimize(total_loss)
    return train_op

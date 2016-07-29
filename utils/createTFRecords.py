@@ -4,16 +4,14 @@ import numpy as np
 import tensorflow as tf 
 import cv2 
 import sys
+sys.path.append('../')
 from glob import glob as glb
-sys.path.append("game/")
 from Atari import Atari
 import random
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('atari_game', 'space_invaders.bin',
-                            """name of atari game to run""")
-tf.app.flags.DEFINE_integer('num_training_frames', 10000,
+tf.app.flags.DEFINE_integer('num_training_frames', 100000,
                             """name of atari game to run""")
 
 
@@ -25,11 +23,12 @@ def get_converted_frame(atari, shape, color):
   action = random_action(len(atari.legal_actions))
   atari.next(action)
   observation, reward, terminal = atari.next(action)
-  observation = cv2.resize(observation, shape, interpolation = cv2.INTER_CUBIC)
+  observation = cv2.resize(observation, (shape[1], shape[0]), interpolation = cv2.INTER_CUBIC)
   if color:
     return observation, reward, action 
   else:
-    return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    observation = cv2.cvtColor(observation, cv2.COLOR_BGR2GRAY)
+    return observation, reward, action 
 
 def random_action(num_actions):
   random_action = np.zeros(num_actions)
@@ -39,9 +38,13 @@ def random_action(num_actions):
 
 def generate_tfrecords(seq_length, shape, frame_num, color):
   # make atari game
-  print(FLAGS.atari_game)
-  atari = Atari(FLAGS.atari_game) 
+  print("starting to generate data for game " + FLAGS.atari_game)
+  print(glb('../game/*'))
+  print('../game/' + FLAGS.atari_game)
+  atari = Atari('../game/' + FLAGS.atari_game) 
   num_actions = len(atari.legal_actions)
+  print("asdfsdfsdf")
+  print(num_actions)
   
   # create tf writer
   record_filename = '../data/tfrecords/' + FLAGS.atari_game[:-4] + '/' + FLAGS.atari_game.replace('.', '_') + '_seq_' + str(seq_length) + '_size_' + str(shape[0]) + 'x' + str(shape[1]) + 'x' + str(frame_num) + '_color_' + str(color) + '.tfrecords'
@@ -50,7 +53,7 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
   tfrecord_filename = glb('../data/tfrecords/'+FLAGS.atari_game[:-4]+'/*')
   if record_filename in tfrecord_filename:
     print('already a tfrecord there! I will skip this one')
-    return 
+    return num_actions
  
   writer = tf.python_io.TFRecordWriter(record_filename)
 
@@ -86,7 +89,7 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
             if color:
               frames[:,:,i*3:(i+1)*3], reward, action = get_converted_frame(atari, shape, color)
             else:
-              frames[:,:,i], reward, action = get_converted_frame(cap, shape, color)
+              frames[:,:,i], reward, action = get_converted_frame(atari, shape, color)
 
           ind = ind + 1
         else:
@@ -99,6 +102,8 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
             frames[:,:,frame_num-1], reward, action = get_converted_frame(atari, shape, color)
 
         seq_frames[s, :, :, :] = frames[:,:,:]
+        seq_reward[s, :] = reward
+        seq_action[s, :] = action[:]
     else:
       if color:
         frames[:,:,0:frame_num*3-3] = frames[:,:,3:frame_num*3]
@@ -109,20 +114,32 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
         frames[:,:,frame_num-1], reward, action = get_converted_frame(atari, shape, color)
 
       seq_frames[0:seq_length-1,:,:,:] = seq_frames[1:seq_length,:,:,:]
+      seq_reward[0:seq_length-1,:] = seq_reward[1:seq_length,:]
+      seq_action[0:seq_length-1,:] = seq_action[1:seq_length,:]
       seq_frames[seq_length-1, :, :, :] = frames[:,:,:]
+      seq_reward[seq_length-1,:] = reward
+      seq_action[seq_length-1,:] = action[:]
 
 
     # process frame for saving
     seq_frames = np.uint8(seq_frames)
+    seq_reward = np.uint8(seq_reward)
+    seq_action = np.uint8(seq_action)
     if color:
       seq_frames_flat = seq_frames.reshape([1,seq_length*shape[0]*shape[1]*frame_num*3])
     else:
       seq_frames_flat = seq_frames.reshape([1,seq_length*shape[0]*shape[1]*frame_num])
-    
+    seq_reward_flat = seq_reward.reshape([1,seq_length])
+    seq_action_flat = seq_action.reshape([1,seq_length*num_actions])
+ 
     seq_frame_raw = seq_frames_flat.tostring()
+    seq_reward_raw = seq_reward_flat.tostring()
+    seq_action_raw = seq_action_flat.tostring()
     # create example and write it
     example = tf.train.Example(features=tf.train.Features(feature={
-      'image': _bytes_feature(seq_frame_raw)})) 
+      'state': _bytes_feature(seq_frame_raw),
+      'reward': _bytes_feature(seq_reward_raw), 
+      'action': _bytes_feature(seq_action_raw)})) 
     writer.write(example.SerializeToString()) 
 
     # Display the resulting frame
@@ -134,7 +151,6 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
     if _%100 == 0:
       print('percent converted = ' + str(100.0 * float(_) / float(FLAGS.num_training_frames)))
 
-  # When everything done, release the capture
-  cap.release()
-  cv2.destroyAllWindows()
+  # When everything done, return num of actions. This is durpy
+  return num_actions
 

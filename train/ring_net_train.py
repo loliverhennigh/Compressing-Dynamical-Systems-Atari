@@ -7,7 +7,6 @@ import tensorflow as tf
 
 import sys
 sys.path.append('../')
-import systems.cannon as cn
 import model.ring_net as ring_net
 
 FLAGS = tf.app.flags.FLAGS
@@ -15,30 +14,30 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', '../checkpoints/train_store_',
                             """dir to store trained net""")
 
-#CURRICULUM_STEPS = [200000, 150000, 200000, 400000]
-CURRICULUM_STEPS = [20, 150000, 200000, 400000]
+CURRICULUM_STEPS = [200000, 150000, 200000, 400000]
+#CURRICULUM_STEPS = [2, 15, 20, 40]
 CURRICULUM_SEQ = [1, 4, 6, 12]
-CURRICULUM_BATCH_SIZE = [30, 25, 15, 10]
+CURRICULUM_BATCH_SIZE = [15, 12, 8, 8]
 CURRICULUM_LEARNING_RATE = [5e-5, 1e-5, 1e-5, 1e-5]
 
 def train(iteration):
   """Train ring_net for a number of steps."""
   with tf.Graph().as_default():
     # make inputs
-    x = ring_net.inputs(CURRICULUM_BATCH_SIZE[iteration], CURRICULUM_SEQ[iteration]) 
+    state, reward, action = ring_net.inputs(CURRICULUM_BATCH_SIZE[iteration], CURRICULUM_SEQ[iteration]) 
 
     # possible input dropout 
     input_keep_prob = tf.placeholder("float")
-    x_drop = tf.nn.dropout(x, input_keep_prob)
+    state_drop = tf.nn.dropout(state, input_keep_prob)
 
     # possible dropout inside
     keep_prob = tf.placeholder("float")
 
     # create and unrap network
-    output_t, output_g, output_f = ring_net.unwrap(x_drop, keep_prob, CURRICULUM_SEQ[iteration]) 
+    output_t, output_g, output_f, output_reward = ring_net.unwrap(state_drop, action, keep_prob, CURRICULUM_SEQ[iteration]) 
 
     # calc error
-    error = ring_net.loss(x, output_t, output_g, output_f)
+    error = ring_net.loss(state, reward, output_t, output_g, output_f, output_reward)
     error = tf.div(error, CURRICULUM_SEQ[iteration])
 
     # train hopefuly 
@@ -46,9 +45,9 @@ def train(iteration):
     
     # List of all Variables
     variables = tf.all_variables()
-    for i, variable in enumerate(variables):
-      print '----------------------------------------------'
-      print variable.name[:variable.name.index(':')]
+    #for i, variable in enumerate(variables):
+    #  print '----------------------------------------------'
+    #  print variable.name[:variable.name.index(':')]
 
     # Build a saver
     saver = tf.train.Saver(tf.all_variables())   
@@ -71,10 +70,10 @@ def train(iteration):
     # restore if iteration is not 0
     if iteration != 0:
       variables_to_restore = tf.all_variables()
-      autoencoder_variables = [variable for i, variable in enumerate(variables_to_restore) if "compress" not in variable.name[:variable.name.index(':')]]
-      rnn_variables = [variable for i, variable in enumerate(variables_to_restore) if "compress" in variable.name[:variable.name.index(':')]]
+      autoencoder_variables = [variable for i, variable in enumerate(variables_to_restore) if ("compress" not in variable.name[:variable.name.index(':')]) and ("RNN" not in variable.name[:variable.name.index(':')])]
+      rnn_variables = [variable for i, variable in enumerate(variables_to_restore) if ("compress" in variable.name[:variable.name.index(':')]) or ("RNN" in variable.name[:variable.name.index(':')])]
      
-      ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir + FLAGS.model + FLAGS.system)
+      ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir + FLAGS.model + FLAGS.atari_game)
       autoencoder_saver = tf.train.Saver(autoencoder_variables)
       print("restoring autoencoder part of network form " + ckpt.model_checkpoint_path)
       autoencoder_saver.restore(sess, ckpt.model_checkpoint_path)
@@ -95,7 +94,7 @@ def train(iteration):
 
     # Summary op
     graph_def = sess.graph.as_graph_def(add_shapes=True)
-    summary_writer = tf.train.SummaryWriter(FLAGS.train_dir + FLAGS.model + FLAGS.system, graph_def=graph_def)
+    summary_writer = tf.train.SummaryWriter(FLAGS.train_dir + FLAGS.model + FLAGS.atari_game, graph_def=graph_def)
 
     for step in xrange(CURRICULUM_STEPS[iteration]):
       t = time.time()
@@ -111,14 +110,14 @@ def train(iteration):
         summary_writer.add_summary(summary_str, step) 
 
       if step%1000 == 0:
-        checkpoint_path = os.path.join(FLAGS.train_dir + FLAGS.model + FLAGS.system, 'model.ckpt')
+        checkpoint_path = os.path.join(FLAGS.train_dir + FLAGS.model + FLAGS.atari_game, 'model.ckpt')
         saver.save(sess, checkpoint_path, global_step=step)  
-        print("saved to " + FLAGS.train_dir + FLAGS.model + FLAGS.system)
+        print("saved to " + FLAGS.train_dir + FLAGS.model + FLAGS.atari_game)
 
 def main(argv=None):  # pylint: disable=unused-argument
-  if tf.gfile.Exists(FLAGS.train_dir + FLAGS.model + FLAGS.system):
-    tf.gfile.DeleteRecursively(FLAGS.train_dir + FLAGS.model + FLAGS.system)
-  tf.gfile.MakeDirs(FLAGS.train_dir + FLAGS.model + FLAGS.system)
+  if tf.gfile.Exists(FLAGS.train_dir + FLAGS.model + FLAGS.atari_game):
+    tf.gfile.DeleteRecursively(FLAGS.train_dir + FLAGS.model + FLAGS.atari_game)
+  tf.gfile.MakeDirs(FLAGS.train_dir + FLAGS.model + FLAGS.atari_game)
   for i in xrange(len(CURRICULUM_STEPS)):
     train(i)
 

@@ -17,8 +17,8 @@ class Atari:
 			self.action_map[self.legal_actions[i]] = i
 		#print len(self.legal_actions)
 		self.windowname = rom_name
-		cv2.startWindowThread()
-		cv2.namedWindow(rom_name)
+		#cv2.startWindowThread()
+		#cv2.namedWindow(rom_name)
 
 	def get_image(self):
 		numpy_surface = np.zeros(self.screen_height*self.screen_width*3, dtype=np.uint8)
@@ -34,7 +34,7 @@ class Atari:
 		reward = self.ale.act(self.legal_actions[np.argmax(action)])	
 		nextstate = self.get_image()
 		
-		cv2.imshow(self.windowname,nextstate)
+		#cv2.imshow(self.windowname,nextstate)
 		if self.ale.game_over():
 			self.newGame()
 		#print "reward %d" % reward 

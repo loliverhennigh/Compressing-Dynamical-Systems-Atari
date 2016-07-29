@@ -14,7 +14,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('min_queue_examples', 1000,
                            """ min examples to queue up""")
 
-def read_data(filename_queue, seq_length, shape, num_frames, color):
+def read_data(filename_queue, seq_length, shape, num_frames, color, num_actions):
   """ reads data from tfrecord files.
 
   Args: 
@@ -28,18 +28,26 @@ def read_data(filename_queue, seq_length, shape, num_frames, color):
   features = tf.parse_single_example(
     serialized_example,
     features={
-      'image':tf.FixedLenFeature([],tf.string)
+      'state':tf.FixedLenFeature([],tf.string),
+      'reward':tf.FixedLenFeature([],tf.string),
+      'action':tf.FixedLenFeature([],tf.string)
     }) 
-  image = tf.decode_raw(features['image'], tf.uint8)
+  state = tf.decode_raw(features['state'], tf.uint8)
+  reward = tf.decode_raw(features['reward'], tf.uint8)
+  reward = tf.reshape(reward, [seq_length, 1])
+  action = tf.decode_raw(features['action'], tf.uint8)
+  action = tf.reshape(action, [seq_length, num_actions])
   if color:
-    image = tf.reshape(image, [seq_length, shape[0], shape[1], num_frames*3])
+    state = tf.reshape(state, [seq_length, shape[0], shape[1], num_frames*3])
   else:
-    image = tf.reshape(image, [seq_length, shape[0], shape[1], num_frames])
-  image = tf.to_float(image) 
+    state = tf.reshape(state, [seq_length, shape[0], shape[1], num_frames])
+  state = tf.to_float(state) 
+  reward = tf.to_float(reward) 
+  action = tf.to_float(action) 
   #Display the training images in the visualizer.
-  return image
+  return state, reward, action
 
-def _generate_image_label_batch(image, batch_size, shuffle=True):
+def _generate_image_label_batch(state, reward, action, batch_size, shuffle=True):
   """Construct a queued batch of images.
   Args:
     image: 4-D Tensor of [seq, height, width, frame_num] 
@@ -54,21 +62,21 @@ def _generate_image_label_batch(image, batch_size, shuffle=True):
   if shuffle:
     #Create a queue that shuffles the examples, and then
     #read 'batch_size' images + labels from the example queue.
-    frames = tf.train.shuffle_batch(
-      [image],
+    states, rewards, actions = tf.train.shuffle_batch(
+      [state, reward, action],
       batch_size=batch_size,
       num_threads=num_preprocess_threads,
       capacity=FLAGS.min_queue_examples + 3 * batch_size,
       min_after_dequeue=FLAGS.min_queue_examples)
   else:
-     frames = tf.train.batch(
-      [image],
+     states, rewards, actions = tf.train.batch(
+      [state, reward, action],
       batch_size=batch_size,
       num_threads=num_preprocess_threads,
       capacity=FLAGS.min_queue_examples + 3 * batch_size)
-  return frames
+  return states, rewards, actions
 
-def video_inputs(batch_size, seq_length):
+def atari_inputs(batch_size, seq_length):
   """Construct video input for ring net. given a video_dir that contains videos this will check to see if there already exists tf recods and makes them. Then returns batchs
   Args:
     batch_size: Number of images per batch.
@@ -78,61 +86,33 @@ def video_inputs(batch_size, seq_length):
   """
 
   # get list of video file names
-  video_filename = glb('../data/videos/'+FLAGS.video_dir+'/*') 
-
   if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
     shape = (84,84)
     num_frames = 4
     color = False
-  if FLAGS.model in ("fully_connected_84x84x3", "lstm_84x84x3"):
-    shape = (84, 84)
-    num_frames = 1 
+  elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
+    shape = (210, 160)
+    num_frames = 4 
     color = True
 
   print("begining to generate tf records")
-  for f in video_filename:
-    createTFRecords.generate_tfrecords(f, seq_length, shape, num_frames, color)
+  #num_actions = 6 
+  num_actions = createTFRecords.generate_tfrecords(seq_length, shape, num_frames, color)
  
   # get list of tfrecords 
-  tfrecord_filename = glb('../data/tfrecords/'+FLAGS.video_dir+'/*seq_' + str(seq_length) + '_size_' + str(shape[0]) + 'x' + str(shape[1]) + 'x' + str(num_frames) + '_color_' + str(color) + '.tfrecords') 
-  
+  tfrecord_filename = glb('../data/tfrecords/'+FLAGS.atari_game[:-4] + '/*seq_' + str(seq_length) + '_size_' + str(shape[0]) + 'x' + str(shape[1]) + 'x' + str(num_frames) + '_color_' + str(color) + '.tfrecords') 
   
   filename_queue = tf.train.string_input_producer(tfrecord_filename) 
 
-  image = read_data(filename_queue, seq_length, shape, num_frames, color)
+  state, reward, action = read_data(filename_queue, seq_length, shape, num_frames, color, num_actions)
+  
+  states, rewards, actions, = _generate_image_label_batch(state, reward, action, batch_size)
   
   if color:
-    display_image = tf.split(3, 3, image)
-    tf.image_summary('images', display_image[0])
+    tf.image_summary('state', states[:,0, :, :, 0:3])
   else:
-    tf.image_summary('images', image)
+    tf.image_summary('state', states[:,0, :, :, :])
 
-  image = tf.div(image, 255.0) 
 
-  frames = _generate_image_label_batch(image, batch_size)
- 
-  return frames 
-
-def cannon_inputs(batch_size, seq_length):
-  """Construct cannon input for ring net. just a 28x28 frame video of a bouncing ball 
-  Args:
-    batch_size: Number of images per batch.
-    seq_length: seq of inputs.
-  Returns:
-    images: Images. 4D tensor. Possible of size [batch_size, 28x28x4].
-  """
-  num_samples = 100000
-  
-  cannon_createTFRecords.generate_tfrecords(num_samples, seq_length)
- 
-  tfrecord_filename = glb('../data/tfrecords/cannon/*num_samples_' + str(num_samples) + '_seq_length_' + str(seq_length) + '.tfrecords') 
-  
-  filename_queue = tf.train.string_input_producer(tfrecord_filename) 
-
-  image = read_data(filename_queue, seq_length, (28, 28), 4, False)
-  tf.image_summary('images', image)
-  
-  frames = _generate_image_label_batch(image, batch_size)
-
-  return frames
+  return states, rewards, actions 
 
