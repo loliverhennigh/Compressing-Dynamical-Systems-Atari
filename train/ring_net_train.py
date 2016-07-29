@@ -14,7 +14,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', '../checkpoints/train_store_',
                             """dir to store trained net""")
 
-CURRICULUM_STEPS = [200000, 150000, 200000, 400000]
+CURRICULUM_STEPS = [200000, 150000, 200000, 500000]
 #CURRICULUM_STEPS = [2, 15, 20, 40]
 CURRICULUM_SEQ = [1, 4, 6, 12]
 CURRICULUM_BATCH_SIZE = [15, 12, 8, 8]

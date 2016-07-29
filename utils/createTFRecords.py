@@ -11,7 +11,7 @@ import random
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('num_training_frames', 100000,
+tf.app.flags.DEFINE_integer('num_training_frames', 2000000,
                             """name of atari game to run""")
 
 
@@ -102,7 +102,10 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
             frames[:,:,frame_num-1], reward, action = get_converted_frame(atari, shape, color)
 
         seq_frames[s, :, :, :] = frames[:,:,:]
-        seq_reward[s, :] = reward
+        if reward > 0:
+          seq_reward[s, :] = 1
+        else:
+          seq_reward[s, :] = 0
         seq_action[s, :] = action[:]
     else:
       if color:
@@ -117,7 +120,11 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
       seq_reward[0:seq_length-1,:] = seq_reward[1:seq_length,:]
       seq_action[0:seq_length-1,:] = seq_action[1:seq_length,:]
       seq_frames[seq_length-1, :, :, :] = frames[:,:,:]
-      seq_reward[seq_length-1,:] = reward
+      if reward > 0:
+        print(reward)
+        seq_reward[s, :] = 1
+      else:
+        seq_reward[s, :] = 0
       seq_action[seq_length-1,:] = action[:]
 
 
