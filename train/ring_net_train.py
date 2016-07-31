@@ -37,7 +37,7 @@ def train(iteration):
     output_t, output_g, output_f, output_reward, output_error = ring_net.unwrap(state_drop, action, keep_prob, CURRICULUM_SEQ[iteration]) 
 
     # calc error
-    error = ring_net.loss(state, reward, output_t, output_g, output_f, output_reward, output_error)
+    error = ring_net.loss(state, reward, action, output_t, output_g, output_f, output_reward, output_error)
     error = tf.div(error, CURRICULUM_SEQ[iteration])
 
     # train hopefuly 

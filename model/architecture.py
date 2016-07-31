@@ -198,7 +198,7 @@ def compression_84x84x4(inputs, action, keep_prob):
   # y_2 
   y_2 = _fc_layer(fc12_dropout, 1024, "compress_15", False, False)
   reward = _fc_layer(fc12_dropout, 1, "compress_16", False, False)
-  predicted_error = _fc_layer(fc12_dropout, 1, "compress_17", False, False)
+  predicted_error = _fc_layer(fc12_dropout, action.get_shape()[2], "compress_17", False, False)
 
   return y_2, reward, predicted_error 
 
@@ -287,7 +287,7 @@ def lstm_compression_210x160x12(inputs, action, hidden_state, keep_prob):
 
   y2, new_state = cell(factor, hidden_state)
   reward = _fc_layer(y2, 1, "compress_13", False, False)
-  predicted_error = _fc_layer(y2, 1, "compress_14", False, False)
+  predicted_error = _fc_layer(y2, action.get_shape()[1], "compress_14", False, False)
   
   return y2, reward, new_state, predicted_error
 

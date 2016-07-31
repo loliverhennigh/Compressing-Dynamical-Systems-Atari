@@ -137,7 +137,7 @@ def unwrap(state, action, keep_prob, seq_length):
 
   return output_t, output_g, output_f, output_reward, predicted_error
 
-def loss(state, reward, output_t, output_g, output_f, output_reward, predicted_error):
+def loss(state, reward, action, output_t, output_g, output_f, output_reward, predicted_error):
   """Calc loss for unrap output.
   Args.
     inputs: true x values
@@ -149,19 +149,21 @@ def loss(state, reward, output_t, output_g, output_f, output_reward, predicted_e
     error: loss value
   """
   # calc encodeing error
-  print(state.get_shape())
   error_xg = tf.nn.l2_loss(output_g - state)
   tf.scalar_summary('error_xg', error_xg)
 
   # calc predicted error
-  for i in xrange(state.get_shape()[1] - 1):
-    true_error = tf.nn.l2_loss(output_g[:, i+1, :, :, :] - state[:, i+1, :, :, :]) 
+  if int(state.get_shape()[1]) - 2 > 0: # make someone look at this code!
+    reward_error = tf.square(output_g - state)
+    reward_error = tf.reduce_sum(reward_error, [2,3,4])
+    gamma_error = tf.reduce_max(predicted_error, [2])
+    gamma_error = tf.mul(.9, gamma_error)
+    true_error = tf.add_n([reward_error[:,1:int(reward_error.get_shape()[1]-1)], gamma_error[:,1:]])
     true_error = tf.stop_gradient(true_error)
-    error_of_error = tf.nn.l2_loss(true_error - predicted_error[:, i, :])
-    # just add it to error_xg for now
-    error_xg = tf.add_n([error_of_error, error_xg])
-   
-
+    predicted_error = tf.mul(predicted_error, action[:,1:,:])
+    predicted_error = tf.reduce_sum(predicted_error, [2])
+    error_error = tf.nn.l2_loss(true_error - predicted_error[:,:int(predicted_error.get_shape()[1]-1)])
+    
   if output_f is not None:
     # calc tf error
     # Scale the t f error based on the ratio of image size to compressed size. This has somewhat undetermined effects
@@ -175,16 +177,21 @@ def loss(state, reward, output_t, output_g, output_f, output_reward, predicted_e
     # calc reward error 
     # Scale the reward error based on the ratio of image size to reward size. This has somewhat undetermined effects
     if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
-      reward_scaling_factor = 2800.0
+      reward_scaling_factor = 2800.0 * 255
     elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
-      reward_scaling_factor = 400000.0
+      reward_scaling_factor = 400000.0 * 255
     error_reward = tf.nn.l2_loss(reward[:,1:,:] - output_reward)
     error_reward = tf.mul(reward_scaling_factor, error_reward)
     tf.scalar_summary('error_reward', error_reward)
-   
+  
+    # Scale q value error
+    tf.scalar_summary('error_error', error_error)
+    
+ 
     # either add up the two errors or train on the greator one. (play with this peice)
-    error = tf.cond(error_tf > error_xg, lambda: error_tf, lambda: error_xg)
-    error = tf.add_n([error, error_reward])
+    error = tf.maximum(error_tf, error_xg)
+    error = tf.maximum(error, error_reward)
+    error = tf.maximum(error, error_error)
   else:
     error = error_xg
   tf.scalar_summary('error', error)
