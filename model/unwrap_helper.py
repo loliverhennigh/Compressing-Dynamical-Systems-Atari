@@ -66,6 +66,7 @@ def lstm_unwrap(state, action, keep_prob, seq_length):
   output_t = []
   output_g = [] 
   output_reward = []
+  output_error = []
   if seq_length > 1:
     output_f = []
   else:
@@ -80,9 +81,10 @@ def lstm_unwrap(state, action, keep_prob, seq_length):
   #tf.image_summary('images_encoder', x_0)
   # do T'
   if seq_length > 1:
-    y_1, reward, hidden_state = ring_net.lstm_compression(y_0, action[:, 0, :], None, keep_prob) 
+    y_1, reward, hidden_state, error = ring_net.lstm_compression(y_0, action[:, 0, :], None, keep_prob) 
     output_t.append(y_1)
     output_reward.append(reward)
+    output_error.append(error)
   # set weight sharing   
   tf.get_variable_scope().reuse_variables()
 
@@ -101,19 +103,22 @@ def lstm_unwrap(state, action, keep_prob, seq_length):
     output_g.append(x_g_i)
     # calc t for all in seq
     if i != (seq_length - 2):
-      y_1, reward, hidden_state = ring_net.lstm_compression(y_1, action[:, i+1, :], hidden_state, keep_prob)
+      y_1, reward, hidden_state, error = ring_net.lstm_compression(y_1, action[:, i+1, :], hidden_state, keep_prob)
       output_t.append(y_1)
       output_reward.append(reward)
+      output_error.append(error)
     
   # compact output_f and output_t 
   if seq_length > 1:
     output_f = tf.pack(output_f)
     output_t = tf.pack(output_t)
     output_reward = tf.pack(output_reward)
+    output_error = tf.pack(output_error)
     output_reward = tf.transpose(output_reward, perm=[1,0,2])
+    output_error = tf.transpose(output_error, perm=[1,0,2])
 
   # compact output g
   output_g = tf.pack(output_g)
   output_g = tf.transpose(output_g, perm=[1,0,2,3,4]) # this will make it look like x (I should check to see if transpose is not flipping or doing anything funny)
-  return output_t, output_g, output_f, output_reward
+  return output_t, output_g, output_f, output_reward, output_error
 

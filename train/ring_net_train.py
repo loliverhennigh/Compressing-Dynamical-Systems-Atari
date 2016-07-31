@@ -14,8 +14,8 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', '../checkpoints/train_store_',
                             """dir to store trained net""")
 
-CURRICULUM_STEPS = [200000, 150000, 200000, 500000]
-#CURRICULUM_STEPS = [2, 15, 20, 40]
+#CURRICULUM_STEPS = [200000, 150000, 200000, 500000]
+CURRICULUM_STEPS = [2, 15, 20, 40]
 CURRICULUM_SEQ = [1, 4, 6, 12]
 CURRICULUM_BATCH_SIZE = [15, 12, 8, 8]
 CURRICULUM_LEARNING_RATE = [5e-5, 1e-5, 1e-5, 1e-5]
@@ -34,10 +34,10 @@ def train(iteration):
     keep_prob = tf.placeholder("float")
 
     # create and unrap network
-    output_t, output_g, output_f, output_reward = ring_net.unwrap(state_drop, action, keep_prob, CURRICULUM_SEQ[iteration]) 
+    output_t, output_g, output_f, output_reward, output_error = ring_net.unwrap(state_drop, action, keep_prob, CURRICULUM_SEQ[iteration]) 
 
     # calc error
-    error = ring_net.loss(state, reward, output_t, output_g, output_f, output_reward)
+    error = ring_net.loss(state, reward, output_t, output_g, output_f, output_reward, output_error)
     error = tf.div(error, CURRICULUM_SEQ[iteration])
 
     # train hopefuly 

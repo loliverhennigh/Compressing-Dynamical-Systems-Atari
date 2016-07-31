@@ -3,8 +3,6 @@ import os
 import numpy as np
 import tensorflow as tf
 import utils.createTFRecords as createTFRecords
-import systems.cannon as cannon 
-import systems.cannon_createTFRecords as cannon_createTFRecords
 from glob import glob as glb
 
 

@@ -81,10 +81,10 @@ def lstm_compression(inputs, action, hidden_state, keep_prob):
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_1 -> y_2
   if FLAGS.model == "lstm_84x84x4": 
-    y_2, reward, hidden_state = architecture.lstm_compression_84x84x4(inputs, action, hidden_state, keep_prob)
+    y_2, reward, hidden_state, predicted_error = architecture.lstm_compression_84x84x4(inputs, action, hidden_state, keep_prob)
   elif FLAGS.model == "lstm_210x160x12": 
-    y_2, reward, hidden_state = architecture.lstm_compression_210x160x12(inputs, action, hidden_state, keep_prob)
-  return y_2, reward, hidden_state
+    y_2, reward, hidden_state, predicted_error = architecture.lstm_compression_210x160x12(inputs, action, hidden_state, keep_prob)
+  return y_2, reward, hidden_state, predicted_error
 
 def compression(inputs, action, keep_prob):
   """Builds compressed dynamical system part of the net.
@@ -96,11 +96,11 @@ def compression(inputs, action, keep_prob):
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_1 -> y_2
   if FLAGS.model == "fully_connected_84x84x4": 
-    y_2, output_reward = architecture.compression_84x84x4(inputs, action, keep_prob)
+    y_2, reward, predicted_error = architecture.compression_84x84x4(inputs, action, keep_prob)
   elif FLAGS.model == "fully_connected_210x160x12": 
-    y_2, output_reward = architecture.compression_210x160x12(inputs, action, keep_prob)
+    y_2, reward, predicted_error = architecture.compression_210x160x12(inputs, action, keep_prob)
 
-  return y_2, predicted_reward 
+  return y_2, reward, predicted_error
 
 def decoding(inputs):
   """Builds decoding part of ring net.
@@ -131,13 +131,13 @@ def unwrap(state, action, keep_prob, seq_length):
   """
 
   if FLAGS.model in ("fully_connected_84x84x4", "fully_connected_210x160x12"):
-    output_t, output_g, output_f, output_reward = unwrap_helper.fully_connected_unwrap(state, action, keep_prob, seq_length)
+    output_t, output_g, output_f, output_reward, predicted_error = unwrap_helper.fully_connected_unwrap(state, action, keep_prob, seq_length)
   elif FLAGS.model in ("lstm_84x84x4", "lstm_210x160x12"):
-    output_t, output_g, output_f, output_reward = unwrap_helper.lstm_unwrap(state, action, keep_prob, seq_length)
+    output_t, output_g, output_f, output_reward, predicted_error = unwrap_helper.lstm_unwrap(state, action, keep_prob, seq_length)
 
-  return output_t, output_g, output_f, output_reward 
+  return output_t, output_g, output_f, output_reward, predicted_error
 
-def loss(state, reward, output_t, output_g, output_f, output_reward):
+def loss(state, reward, output_t, output_g, output_f, output_reward, predicted_error):
   """Calc loss for unrap output.
   Args.
     inputs: true x values
@@ -149,8 +149,18 @@ def loss(state, reward, output_t, output_g, output_f, output_reward):
     error: loss value
   """
   # calc encodeing error
+  print(state.get_shape())
   error_xg = tf.nn.l2_loss(output_g - state)
   tf.scalar_summary('error_xg', error_xg)
+
+  # calc predicted error
+  for i in xrange(state.get_shape()[1] - 1):
+    true_error = tf.nn.l2_loss(output_g[:, i+1, :, :, :] - state[:, i+1, :, :, :]) 
+    true_error = tf.stop_gradient(true_error)
+    error_of_error = tf.nn.l2_loss(true_error - predicted_error[:, i, :])
+    # just add it to error_xg for now
+    error_xg = tf.add_n([error_of_error, error_xg])
+   
 
   if output_f is not None:
     # calc tf error

@@ -198,8 +198,9 @@ def compression_84x84x4(inputs, action, keep_prob):
   # y_2 
   y_2 = _fc_layer(fc12_dropout, 1024, "compress_15", False, False)
   reward = _fc_layer(fc12_dropout, 1, "compress_16", False, False)
+  predicted_error = _fc_layer(fc12_dropout, 1, "compress_17", False, False)
 
-  return y_2, reward 
+  return y_2, reward, predicted_error 
 
 def compression_210x160x12(inputs, action, keep_prob):
   """Builds compressed dynamical system part of the net.
@@ -226,8 +227,9 @@ def compression_210x160x12(inputs, action, keep_prob):
   # y_2 
   y_2 = _fc_layer(fc12_dropout, 2048, "compress_15", False, False)
   reward = _fc_layer(fc12_dropout, 1, "compress_16", False, False)
+  predicted_error = _fc_layer(fc12_dropout, 1, "compress_17", False, False)
 
-  return y_2, reward 
+  return y_2, reward, predicted_error
 
 def lstm_compression_84x84x4(inputs, action, hidden_state, keep_prob):
   """Builds compressed dynamical system part of the net.
@@ -255,8 +257,9 @@ def lstm_compression_84x84x4(inputs, action, hidden_state, keep_prob):
 
   y2, new_state = cell(factor, hidden_state)
   reward = _fc_layer(y2, 1, "compress_13", False, False)
+  predicted_error = _fc_layer(y2, 1, "compress_14", False, False)
   
-  return y2, reward, new_state
+  return y2, reward, new_state, predicted_error
 
 def lstm_compression_210x160x12(inputs, action, hidden_state, keep_prob):
   """Builds compressed dynamical system part of the net.
@@ -284,8 +287,9 @@ def lstm_compression_210x160x12(inputs, action, hidden_state, keep_prob):
 
   y2, new_state = cell(factor, hidden_state)
   reward = _fc_layer(y2, 1, "compress_13", False, False)
+  predicted_error = _fc_layer(y2, 1, "compress_14", False, False)
   
-  return y2, reward, new_state
+  return y2, reward, new_state, predicted_error
 
 def decoding_84x84x4(inputs):
   """Builds decoding part of ring net.
