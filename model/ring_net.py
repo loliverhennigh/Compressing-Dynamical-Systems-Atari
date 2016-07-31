@@ -173,8 +173,8 @@ def loss(state, reward, output_t, output_g, output_f, output_reward):
     tf.scalar_summary('error_reward', error_reward)
    
     # either add up the two errors or train on the greator one. (play with this peice)
-    error = tf.cond(error_tf > error_xg, lambda: error_tf, lambda: error_xg)
-    error = tf.add_n([error, error_reward])
+    error = tf.maximum(error_tf, error_xg)
+    error = tf.maximum(error, error_reward)
   else:
     error = error_xg
   tf.scalar_summary('error', error)
