@@ -23,7 +23,7 @@ def get_converted_frame(atari, shape, color):
   action = random_action(len(atari.legal_actions))
   atari.next(action)
   observation, reward, terminal = atari.next(action)
-  observation = cv2.resize(observation, (shape[1], shape[0]), interpolation = cv2.INTER_CUBIC)
+  observation = cv2.resize(observation, (shape[1], shape[0]), interpolation = cv2.INTER_LINEAR)
   if color:
     return observation, reward, action 
   else:
