@@ -14,11 +14,11 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', '../checkpoints/train_store_',
                             """dir to store trained net""")
 
-CURRICULUM_STEPS = [200000, 150000, 200000, 500000]
+CURRICULUM_STEPS = [200000, 150000, 150000, 150000, 500000]
 #CURRICULUM_STEPS = [2, 15, 20, 40]
-CURRICULUM_SEQ = [1, 4, 6, 12]
-CURRICULUM_BATCH_SIZE = [15, 12, 8, 8]
-CURRICULUM_LEARNING_RATE = [5e-5, 1e-5, 1e-5, 1e-5]
+CURRICULUM_SEQ = [1, 4, 6, 12, 18]
+CURRICULUM_BATCH_SIZE = [15, 12, 8, 8, 6]
+CURRICULUM_LEARNING_RATE = [5e-5, 1e-5, 1e-5, 1e-5, 1e-5]
 
 def train(iteration):
   """Train ring_net for a number of steps."""
