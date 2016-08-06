@@ -177,17 +177,11 @@ def loss(state, reward, action, output_t, output_g, output_f, output_reward, pre
     # calc reward error 
     # Scale the reward error based on the ratio of image size to reward size. This has somewhat undetermined effects
     if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
-      reward_scaling_factor = 2800.0 * 255
+      reward_scaling_factor = 2800.0 * 255.0 * 5.0
     elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
-      reward_scaling_factor = 400000.0 * 255
+      reward_scaling_factor = 400000.0 * 255.0 * 5.0
     error_reward = tf.nn.l2_loss(reward[:,1:,:] - output_reward)
     error_reward = tf.mul(reward_scaling_factor, error_reward)
-    tf.scalar_summary('error_reward', error_reward)
-  
-    # Scale q value error
-    tf.scalar_summary('error_error', error_error)
-    
- 
     # either add up the two errors or train on the greator one. (play with this peice)
     error = tf.maximum(error_tf, error_xg)
     error = tf.maximum(error, error_reward)

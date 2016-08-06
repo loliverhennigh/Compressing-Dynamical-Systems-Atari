@@ -28,7 +28,7 @@ fourcc = cv2.cv.CV_FOURCC('m', 'p', '4', 'v')
 video = cv2.VideoWriter()
 success = video.open(FLAGS.video_name, fourcc, 4, (84, 252), True)
 
-NUM_FRAMES = 20 
+NUM_FRAMES = 100 
 
 def evaluate():
   """ Eval the system"""
