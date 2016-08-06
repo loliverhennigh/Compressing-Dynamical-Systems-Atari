@@ -129,17 +129,17 @@ def encoding_84x84x4(inputs, keep_prob):
   # conv3
   conv3 = _conv_layer(conv2, 3, 1, 128, "encode_3")
   # conv4
-  conv4 = _conv_layer(conv3, 1, 1, 64, "encode_4")
+  conv4 = _conv_layer(conv3, 1, 1, 128, "encode_4")
   # conv5
-  conv5 = _conv_layer(conv4, 3, 1, 128, "encode_5")
+  conv5 = _conv_layer(conv4, 3, 1, 256, "encode_5")
   # conv6
-  conv6 = _conv_layer(conv5, 1, 1, 64, "encode_6")
+  conv6 = _conv_layer(conv5, 1, 1, 128, "encode_6")
   # fc5 
-  fc5 = _fc_layer(conv4, 1024, "encode_7", True, False)
+  fc5 = _fc_layer(conv4, 2048, "encode_7", True, False)
   # dropout maybe
   fc5_dropout = tf.nn.dropout(fc5, keep_prob)
   # y_1 
-  y_1 = _fc_layer(fc5_dropout, 1024, "encode_8", False, False)
+  y_1 = _fc_layer(fc5_dropout, 2048, "encode_8", False, False)
   _activation_summary(y_1)
 
   return y_1 
@@ -182,21 +182,21 @@ def compression_84x84x4(inputs, action, keep_prob):
   # this peice y_1 -> y_2
   # tensor factor part
   y_1 = inputs 
-  y_1_factor = _fc_layer(y_1, 1024, "compress_11", False, False)
-  action_factor = _fc_layer(action, 1024, "compress_12", False, False)
+  y_1_factor = _fc_layer(y_1, 2048, "compress_11", False, False)
+  action_factor = _fc_layer(action, 2048, "compress_12", False, False)
   factor = tf.mul(y_1_factor, action_factor)
   
  
   # (start indexing at 10) -- I will change this in a bit
   # fc11
-  fc11 = _fc_layer(factor, 1024, "compress_13", False, False)
+  fc11 = _fc_layer(factor, 2048, "compress_13", False, False)
   # fc12
-  fc12 = _fc_layer(fc11, 1024, "compress_14", False, False)
+  fc12 = _fc_layer(fc11, 2048, "compress_14", False, False)
   # fc13
   # dropout maybe
   fc12_dropout = tf.nn.dropout(fc12, keep_prob)
   # y_2 
-  y_2 = _fc_layer(fc12_dropout, 1024, "compress_15", False, False)
+  y_2 = _fc_layer(fc12_dropout, 2048, "compress_15", False, False)
   reward = _fc_layer(fc12_dropout, 1, "compress_16", False, False)
 
   return y_2, reward 
@@ -238,15 +238,15 @@ def lstm_compression_84x84x4(inputs, action, hidden_state, keep_prob):
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_1 -> y_2
   y_1 = inputs 
-  y_1_factor = _fc_layer(y_1, 1024, "compress_11", False, False)
-  action_factor = _fc_layer(action, 1024, "compress_12", False, False)
+  y_1_factor = _fc_layer(y_1, 2048, "compress_11", False, False)
+  action_factor = _fc_layer(action, 2048, "compress_12", False, False)
   factor = tf.mul(y_1_factor, action_factor)
   
   num_layers = 2 
 
   with tf.variable_scope("compress_LSTM", initializer = tf.random_uniform_initializer(-0.01, 0.01)):
     with tf.device('/cpu:0'):
-      lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(1024, forget_bias=1.0)
+      lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(2048, forget_bias=1.0)
       lstm_cell = tf.nn.rnn_cell.DropoutWrapper(lstm_cell, output_keep_prob=keep_prob)
       cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * num_layers)
       if hidden_state == None:
@@ -303,7 +303,7 @@ def decoding_84x84x4(inputs):
   # conv23
   conv23 = _transpose_conv_layer(conv22, 1, 1, 128, "decode_23")
   # conv24
-  conv24 = _transpose_conv_layer(conv23, 3, 1, 64, "decode_24")
+  conv24 = _transpose_conv_layer(conv23, 3, 1, 256, "decode_24")
   # conv25
   conv25 = _transpose_conv_layer(conv24, 1, 1, 128, "decode_25")
   # conv26
