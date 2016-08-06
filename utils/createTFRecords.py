@@ -11,7 +11,7 @@ import random
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('num_training_frames', 2000000,
+tf.app.flags.DEFINE_integer('num_training_frames', 200000,
                             """name of atari game to run""")
 
 
