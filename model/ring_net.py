@@ -18,7 +18,7 @@ import input.ring_net_input as ring_net_input
 FLAGS = tf.app.flags.FLAGS
 
 # Constants describing the training process.
-tf.app.flags.DEFINE_string('model', 'lstm_210x160x12',
+tf.app.flags.DEFINE_string('model', 'lstm_210x160x3',
                            """ model name to train """)
 tf.app.flags.DEFINE_string('atari_game', 'space_invaders.bin',
                             """atari game to run""")
@@ -37,14 +37,8 @@ tf.app.flags.DEFINE_float('dropout_hidden', 0.5,
 tf.app.flags.DEFINE_float('dropout_input', 0.8,
                           """ dropout on input """)
 # possible models and systems to train are
-# fully_connected_28x28x4 with cannon
-# lstm_28x28x4 with cannon
-# fully_connected_28x28x3 video with rgb
-# lstm_28x28x3 video with rgb
-# fully_connected_84x84x4 black and white video with 4 frames
-# lstm_84x84x3 black and white video with 4 frames
-# fully_connected_84x84x3 video with rgb
-# lstm_84x84x3 video with rgb
+# lstm_84x84x1 atari
+# lstm_210x160x3 atari with rgb
 
 def inputs(batch_size, seq_length):
   """makes input vector
@@ -63,10 +57,10 @@ def encoding(state, keep_prob):
   #--------- Making the net -----------
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice x_1 -> y_1
-  if FLAGS.model == "fully_connected_84x84x4" or FLAGS.model == "lstm_84x84x4": 
-    y_1 = architecture.encoding_84x84x4(state, keep_prob)
-  elif FLAGS.model == "fully_connected_210x160x12" or FLAGS.model == "lstm_210x160x12": 
-    y_1 = architecture.encoding_210x160x12(state, keep_prob)
+  if FLAGS.model == "lstm_84x84x1": 
+    y_1 = architecture.encoding_84x84x1(state, keep_prob)
+  elif FLAGS.model == "lstm_210x160x3": 
+    y_1 = architecture.encoding_210x160x3(state, keep_prob)
 
   return y_1 
 
@@ -86,22 +80,6 @@ def lstm_compression(inputs, action, hidden_state, keep_prob):
     y_2, reward, hidden_state = architecture.lstm_compression_210x160x12(inputs, action, hidden_state, keep_prob)
   return y_2, reward, hidden_state
 
-def compression(inputs, action, keep_prob):
-  """Builds compressed dynamical system part of the net.
-  Args:
-    inputs: input to system
-    keep_prob: dropout layer
-  """
-  #--------- Making the net -----------
-  # x_1 -> y_1 -> y_2 -> x_2
-  # this peice y_1 -> y_2
-  if FLAGS.model == "fully_connected_84x84x4": 
-    y_2, output_reward = architecture.compression_84x84x4(inputs, action, keep_prob)
-  elif FLAGS.model == "fully_connected_210x160x12": 
-    y_2, output_reward = architecture.compression_210x160x12(inputs, action, keep_prob)
-
-  return y_2, predicted_reward 
-
 def decoding(inputs):
   """Builds decoding part of ring net.
   Args:
@@ -110,9 +88,9 @@ def decoding(inputs):
   #--------- Making the net -----------
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_2 -> x_2
-  if FLAGS.model == "fully_connected_84x84x4" or FLAGS.model == "lstm_84x84x4": 
+  if FLAGS.model == "lstm_84x84x1": 
     x_2 = architecture.decoding_84x84x4(inputs)
-  elif FLAGS.model == "fully_connected_210x160x12" or FLAGS.model == "lstm_210x160x12": 
+  elif FLAGS.model == "lstm_210x160x3": 
     x_2 = architecture.decoding_210x160x12(inputs)
 
   return x_2 
@@ -121,6 +99,7 @@ def unwrap(state, action, keep_prob, seq_length):
   """Unrap the system for training.
   Args:
     inputs: input to system, should be [minibatch, seq_length, image_size]
+    action: input action to the system, should be [minibatch, seq_length, action]
     keep_prob: dropout layers
     seq_length: how far to unravel 
  
@@ -130,10 +109,7 @@ def unwrap(state, action, keep_prob, seq_length):
     output_f: calculated y values from f 
   """
 
-  if FLAGS.model in ("fully_connected_84x84x4", "fully_connected_210x160x12"):
-    output_t, output_g, output_f, output_reward = unwrap_helper.fully_connected_unwrap(state, action, keep_prob, seq_length)
-  elif FLAGS.model in ("lstm_84x84x4", "lstm_210x160x12"):
-    output_t, output_g, output_f, output_reward = unwrap_helper.lstm_unwrap(state, action, keep_prob, seq_length)
+  output_t, output_g, output_f, output_reward = unwrap_helper.lstm_unwrap(state, action, keep_prob, seq_length)
 
   return output_t, output_g, output_f, output_reward 
 
@@ -165,9 +141,9 @@ def loss(state, reward, output_t, output_g, output_f, output_reward):
     # calc reward error 
     # Scale the reward error based on the ratio of image size to reward size. This has somewhat undetermined effects
     if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
-      reward_scaling_factor = 2800.0 * 255.0 * 20.0
+      reward_scaling_factor = 2800.0 * 255.0 * 40.0
     elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
-      reward_scaling_factor = 400000.0 * 255.0 * 20.0
+      reward_scaling_factor = 400000.0 * 255.0 * 40.0
     error_reward = tf.nn.l2_loss(reward[:,1:,:] - output_reward)
     error_reward = tf.mul(reward_scaling_factor, error_reward)
     tf.scalar_summary('error_reward', error_reward)

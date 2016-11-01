@@ -86,17 +86,16 @@ def atari_inputs(batch_size, seq_length):
   """
 
   # get list of video file names
-  if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
+  if FLAGS.model in ("lstm_84x84x1"):
     shape = (84,84)
     num_frames = 4
     color = False
-  elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
+  elif FLAGS.model in ("lstm_210x160x3"):
     shape = (210, 160)
     num_frames = 4 
     color = True
 
   print("begining to generate tf records")
-  #num_actions = 6 
   num_actions = createTFRecords.generate_tfrecords(seq_length, shape, num_frames, color)
  
   # get list of tfrecords 

@@ -12,6 +12,7 @@ import systems.video as vi
 import model.ring_net as ring_net
 import model.unwrap_helper_test as unwrap_helper_test 
 import random
+import time
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -36,6 +37,7 @@ def evaluate():
   """ Eval the system"""
   with tf.Graph().as_default():
     # make inputs
+    state_start, reward_start, action_start, = ring_net.inputs(1, 1) 
     image = tf.placeholder(tf.uint8, (1, 1, shape[0], shape[1], frame_num))
     action = tf.placeholder(tf.float32, (1, 6))
     x = tf.to_float(image)
@@ -64,8 +66,9 @@ def evaluate():
     else:
       print("no chekcpoint file found from " + FLAGS.checkpoint_dir + FLAGS.model + FLAGS.atari_game + ", this is an error")
 
-    # get frame 
-    start_frame = np.zeros((1, 1, shape[0], shape[1], frame_num))
+    # get frame
+    tf.train.start_queue_runners(sess=sess)
+    start_frame = sess.run([state_start])[0]
     play_action = random_action(6)
 
     # eval ounce
@@ -73,6 +76,7 @@ def evaluate():
     
     # Play!!!! 
     for step in xrange(10000):
+      time.sleep(.5)
       # calc generated frame from t
       play_action = random_action(6)
       generated_t_x_1, generated_t_y_1, generated_t_hidden_state_1 = sess.run([x_2, y_2, hidden_state_2],feed_dict={keep_prob:1.0, y_1:generated_t_y_1, hidden_state_1:generated_t_hidden_state_1, action:play_action})
