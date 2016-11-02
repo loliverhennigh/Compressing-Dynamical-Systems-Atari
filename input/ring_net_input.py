@@ -3,8 +3,6 @@ import os
 import numpy as np
 import tensorflow as tf
 import utils.createTFRecords as createTFRecords
-import systems.cannon as cannon 
-import systems.cannon_createTFRecords as cannon_createTFRecords
 from glob import glob as glb
 
 
@@ -92,14 +90,14 @@ def atari_inputs(batch_size, seq_length):
     color = False
   elif FLAGS.model in ("lstm_210x160x3"):
     shape = (210, 160)
-    num_frames = 4 
+    num_frames = 1
     color = True
 
   print("begining to generate tf records")
   num_actions = createTFRecords.generate_tfrecords(seq_length, shape, num_frames, color)
  
   # get list of tfrecords 
-  tfrecord_filename = glb('../data/tfrecords/'+FLAGS.atari_game[:-4] + '/*seq_' + str(seq_length) + '_size_' + str(shape[0]) + 'x' + str(shape[1]) + 'x' + str(num_frames) + '_color_' + str(color) + '.tfrecords') 
+  tfrecord_filename = glb(FLAGS.data_path + '/tfrecords/'+FLAGS.atari_game[:-4] + '/*seq_' + str(seq_length) + '_size_' + str(shape[0]) + 'x' + str(shape[1]) + 'x' + str(num_frames) + '_color_' + str(color) + '.tfrecords') 
   
   filename_queue = tf.train.string_input_producer(tfrecord_filename) 
 

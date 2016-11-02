@@ -8,11 +8,14 @@ sys.path.append('../')
 from glob import glob as glb
 from Atari import Atari
 import random
+from tqdm import *
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('num_training_frames', 200000,
+tf.app.flags.DEFINE_integer('num_training_frames', 50000,
                             """name of atari game to run""")
+tf.app.flags.DEFINE_string('data_path', '../data',
+                            """path to a data dir for saving records""")
 
 
 # helper function
@@ -43,14 +46,12 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
   print('../game/' + FLAGS.atari_game)
   atari = Atari('../game/' + FLAGS.atari_game) 
   num_actions = len(atari.legal_actions)
-  print("asdfsdfsdf")
-  print(num_actions)
   
-  # create tf writer
-  record_filename = '../data/tfrecords/' + FLAGS.atari_game[:-4] + '/' + FLAGS.atari_game.replace('.', '_') + '_seq_' + str(seq_length) + '_size_' + str(shape[0]) + 'x' + str(shape[1]) + 'x' + str(frame_num) + '_color_' + str(color) + '.tfrecords'
+  # create tf writer 
+  record_filename = FLAGS.data_path + '/tfrecords/' + FLAGS.atari_game[:-4] + '/' + FLAGS.atari_game.replace('.', '_') + '_seq_' + str(seq_length) + '_size_' + str(shape[0]) + 'x' + str(shape[1]) + 'x' + str(frame_num) + '_color_' + str(color) + '.tfrecords'
  
   # check to see if file alreay exists 
-  tfrecord_filename = glb('../data/tfrecords/'+FLAGS.atari_game[:-4]+'/*')
+  tfrecord_filename = glb(FLAGS.data_path + '/tfrecords/'+FLAGS.atari_game[:-4]+'/*')
   if record_filename in tfrecord_filename:
     print('already a tfrecord there! I will skip this one')
     return num_actions
@@ -80,7 +81,7 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
   
   print('now generating tfrecords for ' + FLAGS.atari_game + ' and saving to ' + record_filename)
 
-  for _ in xrange(FLAGS.num_training_frames):
+  for _ in tqdm(xrange(FLAGS.num_training_frames)):
     # create frames
     if ind == 0:
       for s in xrange(seq_length):
@@ -121,7 +122,6 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
       seq_action[0:seq_length-1,:] = seq_action[1:seq_length,:]
       seq_frames[seq_length-1, :, :, :] = frames[:,:,:]
       if reward > 0:
-        print(reward)
         seq_reward[s, :] = 1
       else:
         seq_reward[s, :] = 0
@@ -149,14 +149,6 @@ def generate_tfrecords(seq_length, shape, frame_num, color):
       'action': _bytes_feature(seq_action_raw)})) 
     writer.write(example.SerializeToString()) 
 
-    # Display the resulting frame
-    #cv2.imshow('frame',seq_frames[0,:,:,0:3])
-    #if cv2.waitKey(1) & 0xFF == ord('q'):
-    #    break
- 
-    # print status
-    if _%100 == 0:
-      print('percent converted = ' + str(100.0 * float(_) / float(FLAGS.num_training_frames)))
 
   # When everything done, return num of actions. This is durpy
   return num_actions

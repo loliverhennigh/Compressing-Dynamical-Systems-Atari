@@ -311,7 +311,7 @@ def decoding_210x160x3(inputs):
   pad_mat = np.array([[0,0],[0,1],[0,0],[0,0]])
   conv25 = tf.pad(conv25, pad_mat)
   # conv26
-  x_2 = _transpose_conv_layer(conv25, 8, 2, 12, "decode_26")
+  x_2 = _transpose_conv_layer(conv25, 8, 2, 3, "decode_26")
   # x_2 
   _activation_summary(x_2)
 

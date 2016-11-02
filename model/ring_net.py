@@ -74,10 +74,10 @@ def lstm_compression(inputs, action, hidden_state, keep_prob):
   #--------- Making the net -----------
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_1 -> y_2
-  if FLAGS.model == "lstm_84x84x4": 
-    y_2, reward, hidden_state = architecture.lstm_compression_84x84x4(inputs, action, hidden_state, keep_prob)
-  elif FLAGS.model == "lstm_210x160x12": 
-    y_2, reward, hidden_state = architecture.lstm_compression_210x160x12(inputs, action, hidden_state, keep_prob)
+  if FLAGS.model == "lstm_84x84x1": 
+    y_2, reward, hidden_state = architecture.lstm_compression_84x84x1(inputs, action, hidden_state, keep_prob)
+  elif FLAGS.model == "lstm_210x160x3": 
+    y_2, reward, hidden_state = architecture.lstm_compression_210x160x3(inputs, action, hidden_state, keep_prob)
   return y_2, reward, hidden_state
 
 def decoding(inputs):
@@ -89,13 +89,13 @@ def decoding(inputs):
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_2 -> x_2
   if FLAGS.model == "lstm_84x84x1": 
-    x_2 = architecture.decoding_84x84x4(inputs)
+    x_2 = architecture.decoding_84x84x1(inputs)
   elif FLAGS.model == "lstm_210x160x3": 
-    x_2 = architecture.decoding_210x160x12(inputs)
+    x_2 = architecture.decoding_210x160x3(inputs)
 
   return x_2 
 
-def unwrap(state, action, keep_prob, seq_length):
+def unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice):
   """Unrap the system for training.
   Args:
     inputs: input to system, should be [minibatch, seq_length, image_size]
@@ -109,11 +109,11 @@ def unwrap(state, action, keep_prob, seq_length):
     output_f: calculated y values from f 
   """
 
-  output_t, output_g, output_f, output_reward = unwrap_helper.lstm_unwrap(state, action, keep_prob, seq_length)
+  output_f, output_t, output_g, output_reward, output_autoencoder = unwrap_helper.lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice)
 
-  return output_t, output_g, output_f, output_reward 
+  return output_f, output_t, output_g, output_reward, output_autoencoder
 
-def loss(state, reward, output_t, output_g, output_f, output_reward):
+def loss(state, reward, output_f, output_t, output_g, output_reward, output_autoencoding, train_piece):
   """Calc loss for unrap output.
   Args.
     inputs: true x values
@@ -124,39 +124,36 @@ def loss(state, reward, output_t, output_g, output_f, output_reward):
   Return:
     error: loss value
   """
-  # calc encodeing error
-  error_xg = tf.nn.l2_loss(output_g - state)
-  tf.scalar_summary('error_xg', error_xg)
+  # constants in loss
+  autoencoder_loss_constant = 3000.0
+  reward_loss_constant = 10000.0
 
-  if output_f is not None:
-    # calc tf error
-    # Scale the t f error based on the ratio of image size to compressed size. This has somewhat undetermined effects
-    if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
-      tf_scaling_factor = 30.0
-    elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
-      tf_scaling_factor = 200.0
-    error_tf = tf.mul(tf_scaling_factor, tf.nn.l2_loss(output_f - output_t))
-    tf.scalar_summary('error_tf', error_tf)
-    
-    # calc reward error 
-    # Scale the reward error based on the ratio of image size to reward size. This has somewhat undetermined effects
-    if FLAGS.model in ("fully_connected_84x84x4", "lstm_84x84x4"):
-      reward_scaling_factor = 2800.0 * 255.0 * 40.0
-    elif FLAGS.model in ("fully_connected_210x160x12", "lstm_210x160x12"):
-      reward_scaling_factor = 400000.0 * 255.0 * 40.0
-    error_reward = tf.nn.l2_loss(reward[:,1:,:] - output_reward)
-    error_reward = tf.mul(reward_scaling_factor, error_reward)
-    tf.scalar_summary('error_reward', error_reward)
+  # autoencoder loss peice
+  loss_reconstruction_autoencoder = tf.nn.l2_loss(state - output_autoencoding)
+  if train_piece == "all":
+    loss_reconstruction_autoencoder = autoencoder_loss_constant * loss_reconstruction_autoencoder
+  tf.scalar_summary('loss_reconstruction_autoencoder', loss_reconstruction_autoencoder)
    
-    # either add up the two errors or train on the greator one. (play with this peice)
-    error = tf.maximum(error_tf, error_xg)
-    error = tf.add_n([error, error_reward])
+  # compression loss piece
+  seq_length = int(state.get_shape()[1])
+  if seq_length > 1 and train_piece == "all":
+    print(output_f.get_shape())
+    print(output_t.get_shape())
+    loss_t = tf.nn.l2_loss(output_f[:,1:,:] - output_t[:,:seq_length-1,:])
+    # check this peice
+    print(reward[:,1:,:].get_shape())
+    print(output_reward[:,:seq_length-1,:].get_shape())
+    loss_reward = tf.nn.l2_loss(reward[:,1:,:] - output_reward[:,:seq_length-1,:])
+    tf.scalar_summary('loss_t', loss_t)
+    tf.scalar_summary('loss_reward', loss_reward)
   else:
-    error = error_xg
-  tf.scalar_summary('error', error)
-  error.set_shape([])
-  tf.add_to_collection('losses', error)
-  return tf.add_n(tf.get_collection('losses'), name='total_loss')
+    loss_t = 0.0
+    loss_reward = 0.0
+
+  total_loss = tf.reduce_sum(loss_reconstruction_autoencoder + loss_t + loss_reward)
+  tf.scalar_summary('total_loss', total_loss)
+
+  return total_loss 
 
 def train(total_loss, lr):
    train_op = tf.train.AdamOptimizer(lr).minimize(total_loss)
