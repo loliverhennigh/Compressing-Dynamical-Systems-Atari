@@ -76,7 +76,7 @@ def _conv_layer(inputs, kernel_size, stride, num_features, idx):
     conv_rect = tf.maximum(FLAGS.alpha*conv_biased,conv_biased,name='{0}_conv'.format(idx))
     return conv_rect
 
-def _transpose_conv_layer(inputs, kernel_size, stride, num_features, idx):
+def _transpose_conv_layer(inputs, kernel_size, stride, num_features, idx, linear=False):
   with tf.variable_scope('{0}_trans_conv'.format(idx)) as scope:
     input_channels = inputs.get_shape()[3]
     print(idx + str(inputs.get_shape()))
@@ -87,6 +87,8 @@ def _transpose_conv_layer(inputs, kernel_size, stride, num_features, idx):
     output_shape = tf.pack([tf.shape(inputs)[0], tf.shape(inputs)[1]*stride, tf.shape(inputs)[2]*stride, num_features]) 
     conv = tf.nn.conv2d_transpose(inputs, weights, output_shape, strides=[1,stride,stride,1], padding='SAME')
     conv_biased = tf.nn.bias_add(conv, biases)
+    if linear:
+      return conv_biased
     #Leaky ReLU
     conv_rect = tf.maximum(FLAGS.alpha*conv_biased,conv_biased,name='{0}_transpose_conv'.format(idx))
     return conv_rect
@@ -311,7 +313,8 @@ def decoding_210x160x3(inputs):
   pad_mat = np.array([[0,0],[0,1],[0,0],[0,0]])
   conv25 = tf.pad(conv25, pad_mat)
   # conv26
-  x_2 = _transpose_conv_layer(conv25, 8, 2, 3, "decode_26")
+  x_2 = _transpose_conv_layer(conv25, 8, 2, 3, "decode_26", True)
+  x_2 = tf.nn.tanh(x_2)
   # x_2 
   _activation_summary(x_2)
 

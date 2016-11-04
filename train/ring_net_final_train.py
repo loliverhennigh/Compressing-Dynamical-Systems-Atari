@@ -15,14 +15,16 @@ tf.app.flags.DEFINE_string('train_dir', '../checkpoints/train_store_',
                             """dir to store trained net""")
 
 # learning curriculum
-CURRICULUM_STEPS = [1000000, 150000, 150000]
-CURRICULUM_SEQ = [1, 10, 15]
-CURRICULUM_TRAIN_PEICE = ["autoencoder", "all", "all"]
-CURRICULUM_BATCH_SIZE = [64, 8, 6]
-CURRICULUM_LEARNING_RATE = [1e-4, 1e-4, 1e-4]
+CURRICULUM_STEPS = [150000, 150000]
+CURRICULUM_SEQ = [10, 15]
+CURRICULUM_TRAIN_PEICE = ["all", "all"]
+CURRICULUM_BATCH_SIZE = [8, 6]
+CURRICULUM_LEARNING_RATE = [1e-4, 1e-4]
 
 # save file name
-SAVE_DIR = FLAGS.train_dir + '_' +  FLAGS.model + '_' + FLAGS.atari_game
+SAVE_DIR = FLAGS.train_dir + '_final_' +  FLAGS.model + '_' + FLAGS.atari_game
+# load file name
+LOAD_DIR = FLAGS.train_dir + '_' +  FLAGS.model + '_' + FLAGS.atari_game
 
 def train(iteration):
   """Train ring_net for a number of steps."""
@@ -60,39 +62,31 @@ def train(iteration):
     # Summary op
     summary_op = tf.merge_all_summaries()
  
-    # Build an initialization operation to run below.
-    if iteration == 0:
-      init = tf.initialize_all_variables()
-
     # Start running operations on the Graph.
     sess = tf.Session()
 
-    # init if this is the very time training
-    if iteration == 0: 
-      print("init network from scratch")
-      sess.run(init)
-
     # restore if iteration is not 0
-    if iteration != 0:
-      variables_to_restore = tf.all_variables()
-      autoencoder_variables = [variable for i, variable in enumerate(variables_to_restore) if ("compress" not in variable.name[:variable.name.index(':')]) and ("RNN" not in variable.name[:variable.name.index(':')])]
-      rnn_variables = [variable for i, variable in enumerate(variables_to_restore) if ("compress" in variable.name[:variable.name.index(':')]) or ("RNN" in variable.name[:variable.name.index(':')])]
-     
+    variables_to_restore = tf.all_variables()
+    autoencoder_variables = [variable for i, variable in enumerate(variables_to_restore) if ("compress" not in variable.name[:variable.name.index(':')]) and ("RNN" not in variable.name[:variable.name.index(':')])]
+    rnn_variables = [variable for i, variable in enumerate(variables_to_restore) if ("compress" in variable.name[:variable.name.index(':')]) or ("RNN" in variable.name[:variable.name.index(':')])]
+    if iteration == 0: 
+      ckpt = tf.train.get_checkpoint_state(LOAD_DIR)
+    else:
       ckpt = tf.train.get_checkpoint_state(SAVE_DIR)
-      autoencoder_saver = tf.train.Saver(autoencoder_variables)
-      print("restoring autoencoder part of network form " + ckpt.model_checkpoint_path)
-      autoencoder_saver.restore(sess, ckpt.model_checkpoint_path)
-      print("restored file from " + ckpt.model_checkpoint_path)
+    autoencoder_saver = tf.train.Saver(autoencoder_variables)
+    print("restoring autoencoder part of network form " + ckpt.model_checkpoint_path)
+    autoencoder_saver.restore(sess, ckpt.model_checkpoint_path)
+    print("restored file from " + ckpt.model_checkpoint_path)
 
-      if CURRICULUM_SEQ[iteration-1] == 1:
-        print("init compression part of network from scratch")
-        rnn_init = tf.initialize_variables(rnn_variables)
-        sess.run(rnn_init)
-      else:
-        rnn_saver = tf.train.Saver(rnn_variables)
-        print("restoring compression part of network")
-        rnn_saver.restore(sess, ckpt.model_checkpoint_path)
-        print("restored file from " + ckpt.model_checkpoint_path)
+    if iteration == 0:
+      print("init compression part of network from scratch")
+      rnn_init = tf.initialize_variables(rnn_variables)
+      sess.run(rnn_init)
+    else:
+      rnn_saver = tf.train.Saver(rnn_variables)
+      print("restoring compression part of network")
+      rnn_saver.restore(sess, ckpt.model_checkpoint_path)
+      print("restored file from " + ckpt.model_checkpoint_path)
         
     # Start que runner
     tf.train.start_queue_runners(sess=sess)

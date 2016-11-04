@@ -21,12 +21,6 @@ tf.app.flags.DEFINE_string('eval_dir', '../checkpoints/ring_net_eval_store',
 tf.app.flags.DEFINE_string('checkpoint_dir', '../checkpoints/train_store_',
                            """Directory where to read model checkpoints.""")
 
-
-
-shape = (84,84)
-frame_num = 4
-color = False
-
 def random_action(num_actions):
   random_action = np.zeros((1, num_actions))
   action_ind = random.randint(0, num_actions-1)

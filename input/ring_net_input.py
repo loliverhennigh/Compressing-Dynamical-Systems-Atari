@@ -39,7 +39,7 @@ def read_data(filename_queue, seq_length, shape, num_frames, color, num_actions)
     state = tf.reshape(state, [seq_length, shape[0], shape[1], num_frames*3])
   else:
     state = tf.reshape(state, [seq_length, shape[0], shape[1], num_frames])
-  state = tf.to_float(state) 
+  state = tf.to_float(state) / 255.0 
   reward = tf.to_float(reward) 
   action = tf.to_float(action) 
   #Display the training images in the visualizer.

@@ -125,10 +125,12 @@ def loss(state, reward, output_f, output_t, output_g, output_reward, output_auto
     error: loss value
   """
   # constants in loss
-  autoencoder_loss_constant = 3000.0
-  reward_loss_constant = 10000.0
+  autoencoder_loss_constant = 1.0
+  reward_loss_constant = 10.0
 
   # autoencoder loss peice
+  print(state.get_shape())
+  print(output_autoencoding.get_shape())
   loss_reconstruction_autoencoder = tf.nn.l2_loss(state - output_autoencoding)
   if train_piece == "all":
     loss_reconstruction_autoencoder = autoencoder_loss_constant * loss_reconstruction_autoencoder
@@ -139,11 +141,11 @@ def loss(state, reward, output_f, output_t, output_g, output_reward, output_auto
   if seq_length > 1 and train_piece == "all":
     print(output_f.get_shape())
     print(output_t.get_shape())
-    loss_t = tf.nn.l2_loss(output_f[:,1:,:] - output_t[:,:seq_length-1,:])
+    loss_t = tf.nn.l2_loss(output_f[:,5:,:] - output_t[:,4:seq_length-1,:])
     # check this peice
-    print(reward[:,1:,:].get_shape())
-    print(output_reward[:,:seq_length-1,:].get_shape())
-    loss_reward = tf.nn.l2_loss(reward[:,1:,:] - output_reward[:,:seq_length-1,:])
+    print(reward[:,5:,:].get_shape())
+    print(output_reward[:,4:seq_length-1,:].get_shape())
+    loss_reward = reward_loss_constant*tf.nn.l2_loss(reward[:,5:,:] - output_reward[:,4:seq_length-1,:])
     tf.scalar_summary('loss_t', loss_t)
     tf.scalar_summary('loss_reward', loss_reward)
   else:
