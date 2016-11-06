@@ -15,10 +15,10 @@ tf.app.flags.DEFINE_string('train_dir', '../checkpoints/train_store_',
                             """dir to store trained net""")
 
 # learning curriculum
-CURRICULUM_STEPS = [150000, 150000]
+CURRICULUM_STEPS = [100000, 100000]
 CURRICULUM_SEQ = [10, 15]
 CURRICULUM_TRAIN_PEICE = ["all", "all"]
-CURRICULUM_BATCH_SIZE = [8, 6]
+CURRICULUM_BATCH_SIZE = [7, 6]
 CURRICULUM_LEARNING_RATE = [1e-4, 1e-4]
 
 # save file name

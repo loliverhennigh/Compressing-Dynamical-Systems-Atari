@@ -18,7 +18,7 @@ tf.app.flags.DEFINE_string('train_dir', '../checkpoints/train_store_',
 CURRICULUM_STEPS = [1000000, 150000, 150000]
 CURRICULUM_SEQ = [1, 10, 15]
 CURRICULUM_TRAIN_PEICE = ["autoencoder", "all", "all"]
-CURRICULUM_BATCH_SIZE = [64, 8, 6]
+CURRICULUM_BATCH_SIZE = [50, 8, 6]
 CURRICULUM_LEARNING_RATE = [1e-4, 1e-4, 1e-4]
 
 # save file name

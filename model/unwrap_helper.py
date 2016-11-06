@@ -8,7 +8,7 @@ import architecture
 
 FLAGS = tf.app.flags.FLAGS
 
-def lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_piece):
+def lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_piece, return_hidden):
  
   # first run  
   output_f = []
@@ -81,6 +81,9 @@ def lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, t
   # autoencoder
   output_autoencoder = tf.pack(output_autoencoder)
   output_autoencoder = tf.transpose(output_autoencoder, perm=[1,0,2,3,4])
-  
-  return output_f, output_t, output_g, output_reward, output_autoencoder 
+ 
+  if return_hidden: 
+    return output_f, output_t, output_g, output_reward, output_autoencoder, hidden 
+  else: 
+    return output_f, output_t, output_g, output_reward, output_autoencoder 
 

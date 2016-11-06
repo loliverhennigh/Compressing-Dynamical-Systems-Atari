@@ -65,7 +65,6 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
 def _conv_layer(inputs, kernel_size, stride, num_features, idx):
   with tf.variable_scope('{0}_conv'.format(idx)) as scope:
     input_channels = inputs.get_shape()[3]
-    print(idx + str(inputs.get_shape()))
 
     weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,input_channels,num_features],stddev=0.1, wd=FLAGS.weight_decay)
     biases = _variable_on_cpu('biases',[num_features],tf.constant_initializer(0.1))
@@ -79,7 +78,6 @@ def _conv_layer(inputs, kernel_size, stride, num_features, idx):
 def _transpose_conv_layer(inputs, kernel_size, stride, num_features, idx, linear=False):
   with tf.variable_scope('{0}_trans_conv'.format(idx)) as scope:
     input_channels = inputs.get_shape()[3]
-    print(idx + str(inputs.get_shape()))
     
     weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,num_features,input_channels], stddev=0.1, wd=FLAGS.weight_decay)
     biases = _variable_on_cpu('biases',[num_features],tf.constant_initializer(0.1))
@@ -97,7 +95,6 @@ def _transpose_conv_layer(inputs, kernel_size, stride, num_features, idx, linear
 def _fc_layer(inputs, hiddens, idx, flat = False, linear = False):
   with tf.variable_scope('{0}_fc'.format(idx)) as scope:
     input_shape = inputs.get_shape().as_list()
-    print(idx + str(inputs.get_shape()))
     if flat:
       dim = input_shape[1]*input_shape[2]*input_shape[3]
       inputs_processed = tf.reshape(inputs, [-1,dim])

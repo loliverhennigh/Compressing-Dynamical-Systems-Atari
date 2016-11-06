@@ -95,7 +95,7 @@ def decoding(inputs):
 
   return x_2 
 
-def unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice):
+def unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden=False):
   """Unrap the system for training.
   Args:
     inputs: input to system, should be [minibatch, seq_length, image_size]
@@ -108,10 +108,14 @@ def unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_
     output_g: calculated x values from g
     output_f: calculated y values from f 
   """
+  if return_hidden:
+    output_f, output_t, output_g, output_reward, output_autoencoder, hidden = unwrap_helper.lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
+    return output_f, output_t, output_g, output_reward, output_autoencoder, hidden
+  else:
+    output_f, output_t, output_g, output_reward, output_autoencoder = unwrap_helper.lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
+    return output_f, output_t, output_g, output_reward, output_autoencoder
+  
 
-  output_f, output_t, output_g, output_reward, output_autoencoder = unwrap_helper.lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice)
-
-  return output_f, output_t, output_g, output_reward, output_autoencoder
 
 def loss(state, reward, output_f, output_t, output_g, output_reward, output_autoencoding, train_piece):
   """Calc loss for unrap output.
@@ -126,7 +130,8 @@ def loss(state, reward, output_f, output_t, output_g, output_reward, output_auto
   """
   # constants in loss
   autoencoder_loss_constant = 1.0
-  reward_loss_constant = 10.0
+  compression_loss_constant = 1.0
+  reward_loss_constant = 1.0
 
   # autoencoder loss peice
   print(state.get_shape())
@@ -141,7 +146,7 @@ def loss(state, reward, output_f, output_t, output_g, output_reward, output_auto
   if seq_length > 1 and train_piece == "all":
     print(output_f.get_shape())
     print(output_t.get_shape())
-    loss_t = tf.nn.l2_loss(output_f[:,5:,:] - output_t[:,4:seq_length-1,:])
+    loss_t = compression_loss_constant * tf.nn.l2_loss(output_f[:,5:,:] - output_t[:,4:seq_length-1,:])
     # check this peice
     print(reward[:,5:,:].get_shape())
     print(output_reward[:,4:seq_length-1,:].get_shape())

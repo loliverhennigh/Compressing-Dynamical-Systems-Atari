@@ -6,8 +6,6 @@ import cv2
 
 import sys
 sys.path.append('../')
-import systems.cannon as cn
-import systems.video as vi 
 
 import model.ring_net as ring_net
 import model.unwrap_helper_test as unwrap_helper_test 
@@ -31,28 +29,23 @@ def evaluate():
   """ Eval the system"""
   with tf.Graph().as_default():
     # make inputs
-    state_start, reward_start, action_start, = ring_net.inputs(1, 1) 
-    image = tf.placeholder(tf.uint8, (1, 1, shape[0], shape[1], frame_num))
-    action = tf.placeholder(tf.float32, (1, 6))
-    x = tf.to_float(image)
-    #x = tf.div(x, 255.0)
+    state_start, reward_start, action_start, = ring_net.inputs(1, 5) 
+    action_size = int(action_start.get_shape()[2])
+    action = tf.placeholder(tf.float32, (1, action_size))
+
     # unwrap it
-    keep_prob = tf.placeholder("float")
+    output_f, output_t, output_g, output_reward, output_autoencoder, hidden = ring_net.unwrap(state_start, action_start, 1.0, 1.0, 5, "all", return_hidden=True)
 
-    y_0 = unwrap_helper_test.encoding(x, keep_prob)
-
-    x_1, y_1, reward_1, hidden_state_1 = unwrap_helper_test.lstm_step(y_0,action, None,  keep_prob)
-
-    # set reuse to true 
-    tf.get_variable_scope().reuse_variables()
-
-    x_2, y_2, reward_2, hidden_state_2 = unwrap_helper_test.lstm_step(y_1, action, hidden_state_1,  keep_prob)
+    # rename output_t
+    y_0 = output_t[:,4,:]
+    y_1, reward_1, hidden_1 = ring_net.lstm_compression(y_0, action, hidden,  1.0)
+    x_1 = ring_net.decoding(y_1)
 
     # restore network
     variables_to_restore = tf.all_variables()
     saver = tf.train.Saver(variables_to_restore)
     sess = tf.Session()
-    ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir + FLAGS.model + FLAGS.atari_game)
+    ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
     #ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
       saver.restore(sess, ckpt.model_checkpoint_path)
@@ -62,22 +55,22 @@ def evaluate():
 
     # get frame
     tf.train.start_queue_runners(sess=sess)
-    start_frame = sess.run([state_start])[0]
     play_action = random_action(6)
+    y_1_g, hidden_1_g = sess.run([y_1, hidden_1], feed_dict={action:play_action})
 
-    # eval ounce
-    generated_t_x_1, generated_t_y_1, generated_t_reward_1, generated_t_hidden_state_1 = sess.run([x_1, y_1, reward_1, hidden_state_1],feed_dict={keep_prob:1.0, image:start_frame, action:play_action})
-    
     # Play!!!! 
     for step in xrange(10000):
-      time.sleep(.5)
+      print(step)
+      #time.sleep(.5)
       # calc generated frame from t
       play_action = random_action(6)
-      generated_t_x_1, generated_t_y_1, generated_t_hidden_state_1 = sess.run([x_2, y_2, hidden_state_2],feed_dict={keep_prob:1.0, y_1:generated_t_y_1, hidden_state_1:generated_t_hidden_state_1, action:play_action})
-      frame = np.uint8(np.maximum(0, generated_t_x_1))
-      frame = frame[0, :, :, 0:3]
+      y_1_g, hidden_1_g = sess.run([y_1, hidden_1],feed_dict={y_0:y_1_g, hidden:hidden_1_g, action:play_action})
+      x_1_g = sess.run(x_1,feed_dict={y_1:y_1_g})
+      frame = np.uint8(np.minimum(np.maximum(0, x_1_g*255.0), 255))
+      frame = frame[0, :, :, :]
       frame = cv2.resize(frame, (500, 500))
       cv2.imshow('frame', frame)
+      cv2.waitKey(0)
       if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
