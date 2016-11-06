@@ -36,6 +36,12 @@ tf.app.flags.DEFINE_float('dropout_hidden', 0.5,
                           """ dropout on hidden """)
 tf.app.flags.DEFINE_float('dropout_input', 0.8,
                           """ dropout on input """)
+tf.app.flags.DEFINE_bool('variational', False,
+                           """ whether to make a variational autoencoder """)
+tf.app.flags.DEFINE_float('beta', .01,
+                           """ beta param for variational autoencoder """)
+tf.app.flags.DEFINE_bool('kill_f_grad', False,
+                           """ kill gradient for f_output in loss """)
 # possible models and systems to train are
 # lstm_84x84x1 atari
 # lstm_210x160x3 atari with rgb
@@ -132,24 +138,32 @@ def loss(state, reward, output_f, output_t, output_g, output_reward, output_auto
   autoencoder_loss_constant = 1.0
   compression_loss_constant = 1.0
   reward_loss_constant = 1.0
+  epsilon = 1e-12
 
   # autoencoder loss peice
-  print(state.get_shape())
-  print(output_autoencoding.get_shape())
   loss_reconstruction_autoencoder = tf.nn.l2_loss(state - output_autoencoding)
   if train_piece == "all":
     loss_reconstruction_autoencoder = autoencoder_loss_constant * loss_reconstruction_autoencoder
   tf.scalar_summary('loss_reconstruction_autoencoder', loss_reconstruction_autoencoder)
-   
+  if FLAGS.variational:
+    output_f_mean, output_f_stddev = tf.split(2,2,output_f)
+    loss_vae = FLAGS.beta * tf.reduce_sum(0.5 * (tf.square(output_f_mean) + tf.square(output_f_stddev) -
+                    2.0 * tf.log(output_f_stddev + epsilon) - 1.0)) 
+    tf.scalar_summary('loss_vae', loss_vae)
+    loss_reconstruction_autoencoder = loss_reconstruction_autoencoder + loss_vae
+
   # compression loss piece
   seq_length = int(state.get_shape()[1])
   if seq_length > 1 and train_piece == "all":
-    print(output_f.get_shape())
-    print(output_t.get_shape())
-    loss_t = compression_loss_constant * tf.nn.l2_loss(output_f[:,5:,:] - output_t[:,4:seq_length-1,:])
-    # check this peice
-    print(reward[:,5:,:].get_shape())
-    print(output_reward[:,4:seq_length-1,:].get_shape())
+    if FLAGS.kill_f_grad:
+      output_f = tf.stop_gradient(output_f)
+    if FLAGS.variational:
+      output_f_mean, output_f_stddev = tf.split(2,2,output_f[:,5:,:])
+      output_t_mean, output_t_stddev = tf.split(2,2,output_t[:,4:seq_length-1,:])
+      loss_t = tf.reduce_sum(tf.log(tf.div(output_f_stddev, output_t_stddev)) + tf.div((tf.square(output_t_stddev) + tf.square(output_t_mean - output_f_mean)), tf.mul(2.0,tf.square(output_f_stddev))) - .5)
+    else:
+      loss_t = compression_loss_constant * tf.nn.l2_loss(output_f[:,5:,:] - output_t[:,4:seq_length-1,:])
+
     loss_reward = reward_loss_constant*tf.nn.l2_loss(reward[:,5:,:] - output_reward[:,4:seq_length-1,:])
     tf.scalar_summary('loss_t', loss_t)
     tf.scalar_summary('loss_reward', loss_reward)
