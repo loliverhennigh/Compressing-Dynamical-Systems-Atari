@@ -9,7 +9,7 @@ from glob import glob as glb
 FLAGS = tf.app.flags.FLAGS
 
 # Constants describing the training process.
-tf.app.flags.DEFINE_integer('min_queue_examples', 1000,
+tf.app.flags.DEFINE_integer('min_queue_examples', 200,
                            """ min examples to queue up""")
 
 def read_data(filename_queue, seq_length, shape, num_frames, color, num_actions):

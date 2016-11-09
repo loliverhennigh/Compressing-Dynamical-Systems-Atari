@@ -44,11 +44,13 @@ def train():
     for i in xrange(9):
       x_2, reward_2, hidden_state = ring_net.encode_compress_decode(state[:,i+10,:,:,:], action[:,i+10,:], hidden_state, keep_prob_encoding, keep_prob_lstm)
       x_2_o.append(x_2)
+      tf.image_summary('images_gen_' + str(i), x_2)
     x_2_o = tf.pack(x_2_o)
     x_2_o = tf.transpose(x_2_o, perm=[1,0,2,3,4])
 
     # error
     error = tf.nn.l2_loss(state[:,10:20,:,:,:] - x_2_o)
+    tf.scalar_summary('loss', error)
 
     # train (hopefuly)
     train_op = ring_net.train(error, 1e-4)

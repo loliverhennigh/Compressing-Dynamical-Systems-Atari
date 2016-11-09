@@ -197,7 +197,7 @@ def lstm_compression_84x84x1(inputs, action, hidden_state, keep_prob):
   action_factor = _fc_layer(action, 2048, "compress_12", False, False)
   factor = tf.mul(y_1_factor, action_factor)
   
-  num_layers = 3 
+  num_layers = FLAGS.num_layers
 
   with tf.variable_scope("compress_LSTM", initializer = tf.random_uniform_initializer(-0.01, 0.01)):
     with tf.device('/cpu:0'):
@@ -232,7 +232,7 @@ def lstm_compression_210x160x3(inputs, action, hidden_state, keep_prob):
   action_factor = _fc_layer(action, 2048, "compress_12", False, False)
   factor = tf.mul(y_1_factor, action_factor)
   
-  num_layers = 1
+  num_layers = FLAGS.num_layers
 
   with tf.variable_scope("compress_LSTM", initializer = tf.random_uniform_initializer(-0.01, 0.01)):
     with tf.device('/cpu:0'):
@@ -314,6 +314,7 @@ def decoding_210x160x3(inputs):
   # conv26
   x_2 = _transpose_conv_layer(conv25, 8, 2, 3, "decode_26", True)
   x_2 = tf.nn.tanh(x_2)
+  x_2 = tf.reshape(x_2, (int(y_2.get_shape()[0]), 210, 160,3))
   # x_2 
   _activation_summary(x_2)
 

@@ -39,6 +39,8 @@ tf.app.flags.DEFINE_string('implementation', 'paper',
 tf.app.flags.DEFINE_integer('nstep', 1, 
                            """ train on one step """)
 
+tf.app.flags.DEFINE_integer('num_layers', 1, 
+                           """ number of lstm layers """)
 
 # variational autoencoder possibility
 tf.app.flags.DEFINE_bool('variational', False,
