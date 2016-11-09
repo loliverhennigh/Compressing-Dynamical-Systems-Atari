@@ -39,7 +39,7 @@ def lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, t
     output_f.append(y_i)
   
     # compress
-    if i < 4: # possibly increase to 8
+    if i < 10 or FLAGS.nstep != 1: # possibly increase to 8
       y_1, reward_1, hidden = ring_net.lstm_compression(y_i, action[:, i+1, :], hidden, keep_prob_lstm)
     else:
       y_1, reward_1, hidden = ring_net.lstm_compression(y_1, action[:, i+1, :], hidden, keep_prob_lstm)

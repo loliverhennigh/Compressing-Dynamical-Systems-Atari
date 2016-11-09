@@ -232,7 +232,7 @@ def lstm_compression_210x160x3(inputs, action, hidden_state, keep_prob):
   action_factor = _fc_layer(action, 2048, "compress_12", False, False)
   factor = tf.mul(y_1_factor, action_factor)
   
-  num_layers = 3 
+  num_layers = 1
 
   with tf.variable_scope("compress_LSTM", initializer = tf.random_uniform_initializer(-0.01, 0.01)):
     with tf.device('/cpu:0'):

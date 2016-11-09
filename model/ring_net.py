@@ -32,14 +32,22 @@ tf.app.flags.DEFINE_float('alpha', 0.1,
                           """Leaky RElu param""")
 tf.app.flags.DEFINE_float('weight_decay', 0.0005,
                           """ """)
-tf.app.flags.DEFINE_float('dropout_hidden', 0.5,
-                          """ dropout on hidden """)
-tf.app.flags.DEFINE_float('dropout_input', 0.8,
-                          """ dropout on input """)
+
+# paper implementation or new implemetation
+tf.app.flags.DEFINE_string('implementation', 'paper', 
+                           """ implementation found in paper """)
+tf.app.flags.DEFINE_integer('nstep', 1, 
+                           """ train on one step """)
+
+
+# variational autoencoder possibility
 tf.app.flags.DEFINE_bool('variational', False,
                            """ whether to make a variational autoencoder """)
 tf.app.flags.DEFINE_float('beta', .01,
                            """ beta param for variational autoencoder """)
+
+
+# kill the gradients for training compression part
 tf.app.flags.DEFINE_bool('kill_f_grad', False,
                            """ kill gradient for f_output in loss """)
 # possible models and systems to train are
@@ -69,7 +77,6 @@ def encoding(state, keep_prob):
     y_1 = architecture.encoding_210x160x3(state, keep_prob)
 
   return y_1 
-
 
 def lstm_compression(inputs, action, hidden_state, keep_prob):
   """Builds compressed dynamical system part of the net.
@@ -101,7 +108,15 @@ def decoding(inputs):
 
   return x_2 
 
-def unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden=False):
+def encode_compress_decode(state, action, hidden_state, keep_prob_encoding, keep_prob_lstm):
+  
+  y_1 = encoding(state, keep_prob_encoding)
+  y_2, reward_2, hidden_state = lstm_compression(y_1, action, hidden_state, keep_prob_encoding)
+  x_2 = decoding(y_2) 
+
+  return x_2, reward_2, hidden_state
+
+def unwrap_compression(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden=False):
   """Unrap the system for training.
   Args:
     inputs: input to system, should be [minibatch, seq_length, image_size]
@@ -115,15 +130,33 @@ def unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_
     output_f: calculated y values from f 
   """
   if return_hidden:
-    output_f, output_t, output_g, output_reward, output_autoencoder, hidden = unwrap_helper.lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
+    output_f, output_t, output_g, output_reward, output_autoencoder, hidden = unwrap_helper.lstm_unwrap_compression(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
     return output_f, output_t, output_g, output_reward, output_autoencoder, hidden
   else:
-    output_f, output_t, output_g, output_reward, output_autoencoder = unwrap_helper.lstm_unwrap(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
+    output_f, output_t, output_g, output_reward, output_autoencoder = unwrap_helper.lstm_unwrap_compression(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
     return output_f, output_t, output_g, output_reward, output_autoencoder
-  
 
+def unwrap_paper(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden=False):
+  """Unrap the system for training.
+  Args:
+    inputs: input to system, should be [minibatch, seq_length, image_size]
+    action: input action to the system, should be [minibatch, seq_length, action]
+    keep_prob: dropout layers
+    seq_length: how far to unravel 
+ 
+  Return: 
+    output_t: calculated y values from iterating t'
+    output_g: calculated x values from g
+    output_f: calculated y values from f 
+  """
+  if return_hidden:
+    output_g, output_reward, hidden = unwrap_helper.lstm_unwrap_paper( state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
+    return output_g, output_reward, hidden
+  else:
+    output_g, output_reward, = unwrap_helper.lstm_unwrap_paper(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
+    return output_g, output_reward
 
-def loss(state, reward, output_f, output_t, output_g, output_reward, output_autoencoding, train_piece):
+def loss_compression(state, reward, output_f, output_t, output_g, output_reward, output_autoencoding, train_piece):
   """Calc loss for unrap output.
   Args.
     inputs: true x values
