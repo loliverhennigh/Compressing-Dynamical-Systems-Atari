@@ -215,7 +215,7 @@ def lstm_compression_84x84x1(inputs, action, hidden_state, keep_prob):
     stddev = tf.sqrt(tf.exp(stddev))
     y2 = tf.concat(1, [mean, stddev])
     
-  reward = _fc_layer(y2, 1, "compress_13", False, False)
+  reward = _fc_layer(y2, 1, "reward_compress_13", False, False)
   
   return y2, reward, new_state
 
@@ -236,7 +236,7 @@ def lstm_compression_210x160x3(inputs, action, hidden_state, keep_prob):
 
   with tf.variable_scope("compress_LSTM", initializer = tf.random_uniform_initializer(-0.01, 0.01)):
     with tf.device('/cpu:0'):
-      lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(2048, forget_bias=1.0)
+      lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(2048, forget_bias=1.0, state_is_tuple=False)
       lstm_cell = tf.nn.rnn_cell.DropoutWrapper(lstm_cell, output_keep_prob=keep_prob)
       cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * num_layers)
       if hidden_state == None:
@@ -250,7 +250,7 @@ def lstm_compression_210x160x3(inputs, action, hidden_state, keep_prob):
     stddev = tf.sqrt(tf.exp(stddev))
     y2 = tf.concat(1, [mean, stddev])
 
-  reward = _fc_layer(y2, 1, "compress_13", False, False)
+  reward = _fc_layer(y2, 1, "reward_compress_13", False, False)
   
   return y2, reward, new_state
 

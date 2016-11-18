@@ -65,7 +65,7 @@ def train():
     variables = tf.all_variables()
 
     # Build a saver
-    saver = tf.train.Saver(tf.all_variables())   
+    saver = tf.train.Saver(tf.all_variables(), max_to_keep=1)   
 
     # Summary op
     summary_op = tf.merge_all_summaries()

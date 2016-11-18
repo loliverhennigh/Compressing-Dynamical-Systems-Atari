@@ -44,14 +44,16 @@ def evaluate():
     x_2, reward_2, hidden_state = ring_net.encode_compress_decode(state_start[:,0,:,:,:], action_start[:,0,:], None, 1.0, 1.0)
     tf.get_variable_scope().reuse_variables()
     # unroll for 9 more steps
-    for i in xrange(9):
+    for i in xrange(8):
       x_2, reward_2,  hidden_state = ring_net.encode_compress_decode(state_start[:,i+1,:,:,:], action_start[:,i+1,:], hidden_state, 1.0, 1.0)
+    y_1 = ring_net.encoding(state_start[:,9,:,:,:], 1.0)
+    y_2, reward_2, hidden_state = ring_net.lstm_compression(y_1, action_start[:,9,:], hidden_state, 1.0)
+    x_2 = ring_net.decoding(y_2)
 
-    # rename output_t
-    x_1 = x_2
-    print(hidden_state)
+    y_1 = y_2
     hidden_state_1 = hidden_state
-    x_2, reward_2, hidden_state_2 = ring_net.encode_compress_decode(x_1, action, hidden_state_1,  1.0, 1.0)
+    y_2, reward_2, hidden_state_2 = ring_net.lstm_compression(y_1, action, hidden_state_1,  1.0)
+    x_2 = ring_net.decoding(y_2)
 
     # restore network
     variables_to_restore = tf.all_variables()
@@ -68,7 +70,9 @@ def evaluate():
     # get frame
     tf.train.start_queue_runners(sess=sess)
     play_action = random_action(action_size)
-    x_2_g, hidden_2_g = sess.run([x_1, hidden_state_1], feed_dict={})
+    y_2_g, hidden_2_g = sess.run([y_1, hidden_state_1], feed_dict={})
+
+    #print(hidden_2_g.shape)
 
     # Play!!!! 
     for step in xrange(100):
@@ -76,8 +80,7 @@ def evaluate():
       #time.sleep(.5)
       # calc generated frame from t
       play_action = random_action(action_size)
-      print(hidden_2_g)
-      x_2_g, hidden_2_g = sess.run([x_2, hidden_state_2],feed_dict={x_1:x_2_g, hidden_state_1:hidden_2_g, action:play_action})
+      x_2_g, y_g_2, hidden_2_g = sess.run([x_2, y_2, hidden_state_2],feed_dict={y_1:y_2_g, hidden_state_1:hidden_2_g, action:play_action})
       frame = np.uint8(np.minimum(np.maximum(0, x_2_g*255.0), 255))
       frame = frame[0, :, :, :]
       video.write(frame)

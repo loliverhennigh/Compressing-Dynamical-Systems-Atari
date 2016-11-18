@@ -15,14 +15,14 @@ tf.app.flags.DEFINE_string('train_dir', '../checkpoints/train_store_',
                             """dir to store trained net""")
 
 # save file name
-SAVE_DIR = FLAGS.train_dir + '_' +  FLAGS.model + '_' + FLAGS.atari_game + '_compress_' + '_seq_length_3'
-RESTORE_DIR = FLAGS.train_dir + '_' +  FLAGS.model + '_' + FLAGS.atari_game + '_paper_' + '_seq_length_1'
+SAVE_DIR = FLAGS.train_dir + '_' +  FLAGS.model + '_' + FLAGS.atari_game + '_paper_' + '_seq_length_5_reward'
+RESTORE_DIR = FLAGS.train_dir + '_' +  FLAGS.model + '_' + FLAGS.atari_game + '_paper_' + '_seq_length_5'
 
 def train():
   """Train ring_net for a number of steps."""
   with tf.Graph().as_default():
     # make inputs
-    state, reward, action = ring_net.inputs(4, 13) 
+    state, reward, action = ring_net.inputs(4, 15) 
 
     # possible input dropout 
     input_keep_prob = tf.placeholder("float")
@@ -34,28 +34,30 @@ def train():
 
     # unwrap
     x_2_o = []
+    reward_2_o = []
     # first step
     x_2, reward_2, hidden_state = ring_net.encode_compress_decode(state[:,0,:,:,:], action[:,0,:], None, keep_prob_encoding, keep_prob_lstm)
     tf.get_variable_scope().reuse_variables()
     # unroll for 9 more steps
-    for i in xrange(8):
+    for i in xrange(9):
       x_2, reward_2,  hidden_state = ring_net.encode_compress_decode(state[:,i+1,:,:,:], action[:,i+1,:], hidden_state, keep_prob_encoding, keep_prob_lstm)
-    y_1 = ring_net.encoding(state[:,9,:,:,:], keep_prob_encoding)
-    y_2, reward_2, hidden_state = ring_net.lstm_compression(y_1, action[:,9,:], hidden_state, keep_prob_lstm)
-    x_2 = ring_net.decoding(y_2)
-
-    x_2_o.append(x_2)
     # now collect values
-    for i in xrange(2):
-      y_2, reward_2, hidden_state = ring_net.lstm_compression(y_2, action[:,i+10,:], hidden_state, keep_prob_lstm)
-      x_2 = ring_net.decoding(y_2)
+    x_2_o.append(x_2)
+    reward_2_o.append(reward_2)
+    for i in xrange(4):
+      x_2, reward_2, hidden_state = ring_net.encode_compress_decode(x_2, action[:,i+10,:], hidden_state, keep_prob_encoding, keep_prob_lstm)
       x_2_o.append(x_2)
+      reward_2_o.append(reward_2)
       tf.image_summary('images_gen_' + str(i), x_2)
     x_2_o = tf.pack(x_2_o)
     x_2_o = tf.transpose(x_2_o, perm=[1,0,2,3,4])
+    reward_2_o = tf.pack(reward_2_o)
+    reward_2_o = tf.transpose(reward_2_o, perm=[1,0,2])
 
     # error
-    error = tf.nn.l2_loss(state[:,10:13,:,:,:] - x_2_o)
+    error_reconstruction = tf.nn.l2_loss(state[:,10:15,:,:,:] - x_2_o)
+    error_reward = tf.nn.l2_loss(reward[:,10:15,:] - reward_2_o)
+    error = tf.reduce_mean(error_reconstruction + error_reward) 
     tf.scalar_summary('loss', error)
 
     # train (hopefuly)
@@ -70,14 +72,24 @@ def train():
     # Summary op
     summary_op = tf.merge_all_summaries()
  
+    # Build an initialization operation to run below.
+    init = tf.initialize_all_variables()
+
     # Start running operations on the Graph.
     sess = tf.Session()
 
+    # init if this is the very time training
+    print("init network from scratch (just for the reward gradients)")
+    sess.run(init)
+
     # init from seq 1 model
     print("init from " + RESTORE_DIR)
-    saver_restore = tf.train.Saver(variables)
+    variables_no_reward = [variable for i, variable in enumerate(variables) if "reward" not in variable.name[:variable.name.index(':')] ]
+    print(variables_no_reward)
+    saver_restore = tf.train.Saver(variables_no_reward)
     ckpt = tf.train.get_checkpoint_state(RESTORE_DIR)
     saver_restore.restore(sess, ckpt.model_checkpoint_path)
+
 
     # Start que runner
     tf.train.start_queue_runners(sess=sess)
@@ -86,7 +98,7 @@ def train():
     graph_def = sess.graph.as_graph_def(add_shapes=True)
     summary_writer = tf.train.SummaryWriter(SAVE_DIR, graph_def=graph_def)
 
-    for step in xrange(100000):
+    for step in xrange(500000):
       t = time.time()
       _ , loss_value = sess.run([train_op, error],feed_dict={keep_prob_encoding:1.0, keep_prob_lstm:1.0, input_keep_prob:1.0})
       elapsed = time.time() - t

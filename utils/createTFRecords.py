@@ -12,7 +12,7 @@ from tqdm import *
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('num_training_frames', 50000,
+tf.app.flags.DEFINE_integer('num_training_frames', 30000,
                             """name of atari game to run""")
 tf.app.flags.DEFINE_string('data_path', '../data',
                             """path to a data dir for saving records""")
