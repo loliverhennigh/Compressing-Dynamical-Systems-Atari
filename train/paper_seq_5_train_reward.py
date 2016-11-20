@@ -36,16 +36,16 @@ def train():
     x_2_o = []
     reward_2_o = []
     # first step
-    x_2, reward_2, hidden_state = ring_net.encode_compress_decode(state[:,0,:,:,:], action[:,0,:], None, keep_prob_encoding, keep_prob_lstm)
+    x_2, reward_2, hidden_state = ring_net.encode_compress_decode(state[:,0,:,:,:], action[:,1,:], None, keep_prob_encoding, keep_prob_lstm)
     tf.get_variable_scope().reuse_variables()
     # unroll for 9 more steps
     for i in xrange(9):
-      x_2, reward_2,  hidden_state = ring_net.encode_compress_decode(state[:,i+1,:,:,:], action[:,i+1,:], hidden_state, keep_prob_encoding, keep_prob_lstm)
+      x_2, reward_2,  hidden_state = ring_net.encode_compress_decode(state[:,i+1,:,:,:], action[:,i+2,:], hidden_state, keep_prob_encoding, keep_prob_lstm)
     # now collect values
     x_2_o.append(x_2)
     reward_2_o.append(reward_2)
     for i in xrange(4):
-      x_2, reward_2, hidden_state = ring_net.encode_compress_decode(x_2, action[:,i+10,:], hidden_state, keep_prob_encoding, keep_prob_lstm)
+      x_2, reward_2, hidden_state = ring_net.encode_compress_decode(x_2, action[:,i+11,:], hidden_state, keep_prob_encoding, keep_prob_lstm)
       x_2_o.append(x_2)
       reward_2_o.append(reward_2)
       tf.image_summary('images_gen_' + str(i), x_2)

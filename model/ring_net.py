@@ -22,8 +22,6 @@ tf.app.flags.DEFINE_string('model', 'lstm_210x160x3',
                            """ model name to train """)
 tf.app.flags.DEFINE_string('atari_game', 'space_invaders.bin',
                             """atari game to run""")
-tf.app.flags.DEFINE_string('system', 'cannon',
-                           """ system to compress """)
 tf.app.flags.DEFINE_float('moving_average_decay', 0.9999,
                           """The decay to use for the moving average""")
 tf.app.flags.DEFINE_float('momentum', 0.9,
@@ -33,25 +31,6 @@ tf.app.flags.DEFINE_float('alpha', 0.1,
 tf.app.flags.DEFINE_float('weight_decay', 0.0005,
                           """ """)
 
-# paper implementation or new implemetation
-tf.app.flags.DEFINE_string('implementation', 'paper', 
-                           """ implementation found in paper """)
-tf.app.flags.DEFINE_integer('nstep', 1, 
-                           """ train on one step """)
-
-tf.app.flags.DEFINE_integer('num_layers', 1, 
-                           """ number of lstm layers """)
-
-# variational autoencoder possibility
-tf.app.flags.DEFINE_bool('variational', False,
-                           """ whether to make a variational autoencoder """)
-tf.app.flags.DEFINE_float('beta', .01,
-                           """ beta param for variational autoencoder """)
-
-
-# kill the gradients for training compression part
-tf.app.flags.DEFINE_bool('kill_f_grad', False,
-                           """ kill gradient for f_output in loss """)
 # possible models and systems to train are
 # lstm_84x84x1 atari
 # lstm_210x160x3 atari with rgb
