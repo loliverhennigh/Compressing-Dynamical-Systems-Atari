@@ -134,17 +134,10 @@ def encoding_84x84x1(inputs, keep_prob):
   # conv6
   conv6 = _conv_layer(conv5, 1, 1, 32, "encode_6")
 
-  if FLAGS.variational:
-    # fc5 
-    fc5 = _fc_layer(conv6, 4096, "encode_7", True, True)
-    mean, stddev = tf.split(1, 2, fc5) 
-    stddev = tf.sqrt(tf.exp(stddev))
-    y_1 = tf.concat(1, [mean, stddev])
-  else:
-    # fc5 
-    fc5 = _fc_layer(conv6, 2048, "encode_7", True, False)
-    # dropout maybe
-    y_1 = tf.nn.dropout(fc5, keep_prob)
+  # fc5 
+  fc5 = _fc_layer(conv6, 2048, "encode_7", True, False)
+  # dropout maybe
+  y_1 = tf.nn.dropout(fc5, keep_prob)
 
   _activation_summary(y_1)
   return y_1 
@@ -169,17 +162,10 @@ def encoding_210x160x3(inputs, keep_prob):
   # conv4
   conv4 = _conv_layer(conv3, 4, 2, 128, "encode_4")
 
-  if FLAGS.variational:
-    # fc5 
-    fc5 = _fc_layer(conv4, 4096, "encode_7", True, True)
-    mean, stddev = tf.split(1, 2, fc5) 
-    stddev = tf.sqrt(tf.exp(stddev))
-    y_1 = tf.concat(1, [mean, stddev])
-  else:
-    # fc5 
-    fc5 = _fc_layer(conv4, 2048, "encode_7", True, False)
-    # dropout maybe
-    y_1 = tf.nn.dropout(fc5, keep_prob)
+  # fc5 
+  fc5 = _fc_layer(conv4, 2048, "encode_7", True, False)
+  # dropout maybe
+  y_1 = tf.nn.dropout(fc5, keep_prob)
 
   _activation_summary(y_1)
   return y_1 
@@ -197,7 +183,7 @@ def lstm_compression_84x84x1(inputs, action, hidden_state, keep_prob):
   action_factor = _fc_layer(action, 2048, "compress_12", False, False)
   factor = tf.mul(y_1_factor, action_factor)
   
-  num_layers = FLAGS.num_layers
+  num_layers = 1
 
   with tf.variable_scope("compress_LSTM", initializer = tf.random_uniform_initializer(-0.01, 0.01)):
     with tf.device('/cpu:0'):
@@ -209,11 +195,6 @@ def lstm_compression_84x84x1(inputs, action, hidden_state, keep_prob):
         hidden_state = cell.zero_state(batch_size, tf.float32)
 
   y2, new_state = cell(factor, hidden_state)
-  if FLAGS.variational:
-    dist = _fc_layer(y2, 4096, "compress_11", False, True)
-    mean, stddev = tf.split(1, 2, dist) 
-    stddev = tf.sqrt(tf.exp(stddev))
-    y2 = tf.concat(1, [mean, stddev])
     
   reward = _fc_layer(y2, 1, "reward_compress_13", False, False)
   
@@ -232,7 +213,7 @@ def lstm_compression_210x160x3(inputs, action, hidden_state, keep_prob):
   action_factor = _fc_layer(action, 2048, "compress_12", False, False)
   factor = tf.mul(y_1_factor, action_factor)
   
-  num_layers = FLAGS.num_layers
+  num_layers = 1
 
   with tf.variable_scope("compress_LSTM", initializer = tf.random_uniform_initializer(-0.01, 0.01)):
     with tf.device('/cpu:0'):
@@ -244,11 +225,6 @@ def lstm_compression_210x160x3(inputs, action, hidden_state, keep_prob):
         hidden_state = cell.zero_state(batch_size, tf.float32)
 
   y2, new_state = cell(factor, hidden_state)
-  if FLAGS.variational:
-    dist = _fc_layer(y2, 4096, "compress_11", False, True)
-    mean, stddev = tf.split(1, 2, dist) 
-    stddev = tf.sqrt(tf.exp(stddev))
-    y2 = tf.concat(1, [mean, stddev])
 
   reward = _fc_layer(y2, 1, "reward_compress_13", False, False)
   
@@ -263,10 +239,6 @@ def decoding_84x84x1(inputs):
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_2 -> x_2
   y_2 = inputs 
-  if FLAGS.variational:
-    mean, stddev = tf.split(1, 2, y_2)
-    epsilon = tf.random_normal(mean.get_shape())
-    y_2 = mean + epsilon * stddev
   # fc21
   fc21 = _fc_layer(y_2, 32*14*14, "decode_21", False, False)
   conv22 = tf.reshape(fc21, [-1, 14, 14, 32])
@@ -296,10 +268,6 @@ def decoding_210x160x3(inputs):
   # x_1 -> y_1 -> y_2 -> x_2
   # this peice y_2 -> x_2
   y_2 = inputs 
-  if FLAGS.variational:
-    mean, stddev = tf.split(1, 2, y_2)
-    epsilon = tf.random_normal(mean.get_shape())
-    y_2 = mean + epsilon * stddev
   # fc21
   fc21 = _fc_layer(y_2, 128*13*10, "decode_21", False, False)
   conv22 = tf.reshape(fc21, [-1, 13, 10, 128])
