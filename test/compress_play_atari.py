@@ -8,7 +8,6 @@ import sys
 sys.path.append('../')
 
 import model.ring_net as ring_net
-import model.unwrap_helper_test as unwrap_helper_test 
 import random
 import time
 
@@ -22,7 +21,7 @@ tf.app.flags.DEFINE_string('checkpoint_dir', '../checkpoints/train_store_',
 fourcc = cv2.cv.CV_FOURCC('m', 'p', '4', 'v') 
 video = cv2.VideoWriter()
 
-success = video.open('atari_paper.mov', fourcc, 4, (160, 210), True)
+success = video.open('atari_paper.mov', fourcc, 2, (160, 210), True)
 
 def random_action(num_actions):
   random_action = np.zeros((1, num_actions))
@@ -34,18 +33,18 @@ def evaluate():
   """ Eval the system"""
   with tf.Graph().as_default():
     # make inputs
-    state_start, reward_start, action_start, = ring_net.inputs(1, 10) 
+    state_start, reward_start, action_start, = ring_net.inputs(1, 15)
     action_size = int(action_start.get_shape()[2])
     action = tf.placeholder(tf.float32, (1, action_size))
 
     # unwrap
     x_2_o = []
     # first step
-    x_2, reward_2, hidden_state = ring_net.encode_compress_decode(state_start[:,0,:,:,:], action_start[:,0,:], None, 1.0, 1.0)
+    x_2, reward_2, hidden_state = ring_net.encode_compress_decode(state_start[:,0,:,:,:], action_start[:,1,:], None, 1.0, 1.0)
     tf.get_variable_scope().reuse_variables()
     # unroll for 9 more steps
     for i in xrange(8):
-      x_2, reward_2,  hidden_state = ring_net.encode_compress_decode(state_start[:,i+1,:,:,:], action_start[:,i+1,:], hidden_state, 1.0, 1.0)
+      x_2, reward_2,  hidden_state = ring_net.encode_compress_decode(state_start[:,i+1,:,:,:], action_start[:,i+2,:], hidden_state, 1.0, 1.0)
     y_1 = ring_net.encoding(state_start[:,9,:,:,:], 1.0)
     y_2, reward_2, hidden_state = ring_net.lstm_compression(y_1, action_start[:,9,:], hidden_state, 1.0)
     x_2 = ring_net.decoding(y_2)
