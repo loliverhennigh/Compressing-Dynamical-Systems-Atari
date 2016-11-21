@@ -27,10 +27,16 @@ Convergence progress can be monitored with tensorboard.
 
 
 ## Results
+### "Paper" generated video
+Here is a video generated from the paper model!
+[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/jKou1ib7Z70/0.jpg)](https://www.youtube.com/watch?v=jKou1ib7Z70)
 
+### "Compression" generated video
+Here is a video generated from the compression model!
+[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/j6ZDH-gxTPs/0.jpg)](https://www.youtube.com/watch?v=j6ZDH-gxTPs)
 
-## Conclusion
+### Discussion
+The "paper" implementation seems to not work as well as the original paper. This is a bit interesting because the parameter and network architeture seems to be extremely similar. The big difference between the two is that instead of using a pretrained DQN model to generate the training data, I randomly select actions. I wonder how well the original paper would work if the network was given random actions at test time. The dataset I generate is relatively small though so it might just be my model overfitting.
 
-This method did not work terribly well. 
 
 
