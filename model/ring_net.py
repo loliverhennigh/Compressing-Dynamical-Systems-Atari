@@ -12,7 +12,6 @@ Summary of available functions:
 import tensorflow as tf
 import numpy as np
 import architecture
-import unwrap_helper
 import input.ring_net_input as ring_net_input
 
 FLAGS = tf.app.flags.FLAGS
@@ -96,46 +95,6 @@ def encode_compress_decode(state, action, hidden_state, keep_prob_encoding, keep
   x_2 = decoding(y_2) 
 
   return x_2, reward_2, hidden_state
-
-def unwrap_compression(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden=False):
-  """Unrap the system for training.
-  Args:
-    inputs: input to system, should be [minibatch, seq_length, image_size]
-    action: input action to the system, should be [minibatch, seq_length, action]
-    keep_prob: dropout layers
-    seq_length: how far to unravel 
- 
-  Return: 
-    output_t: calculated y values from iterating t'
-    output_g: calculated x values from g
-    output_f: calculated y values from f 
-  """
-  if return_hidden:
-    output_f, output_t, output_g, output_reward, output_autoencoder, hidden = unwrap_helper.lstm_unwrap_compression(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
-    return output_f, output_t, output_g, output_reward, output_autoencoder, hidden
-  else:
-    output_f, output_t, output_g, output_reward, output_autoencoder = unwrap_helper.lstm_unwrap_compression(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
-    return output_f, output_t, output_g, output_reward, output_autoencoder
-
-def unwrap_paper(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden=False):
-  """Unrap the system for training.
-  Args:
-    inputs: input to system, should be [minibatch, seq_length, image_size]
-    action: input action to the system, should be [minibatch, seq_length, action]
-    keep_prob: dropout layers
-    seq_length: how far to unravel 
- 
-  Return: 
-    output_t: calculated y values from iterating t'
-    output_g: calculated x values from g
-    output_f: calculated y values from f 
-  """
-  if return_hidden:
-    output_g, output_reward, hidden = unwrap_helper.lstm_unwrap_paper( state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
-    return output_g, output_reward, hidden
-  else:
-    output_g, output_reward, = unwrap_helper.lstm_unwrap_paper(state, action, keep_prob_encoding, keep_prob_lstm, seq_length, train_peice, return_hidden)
-    return output_g, output_reward
 
 def train(total_loss, lr):
    train_op = tf.train.AdamOptimizer(lr).minimize(total_loss)

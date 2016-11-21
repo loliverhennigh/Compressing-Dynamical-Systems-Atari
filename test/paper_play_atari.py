@@ -8,7 +8,6 @@ import sys
 sys.path.append('../')
 
 import model.ring_net as ring_net
-import model.unwrap_helper_test as unwrap_helper_test 
 import random
 import time
 
@@ -22,7 +21,7 @@ tf.app.flags.DEFINE_string('checkpoint_dir', '../checkpoints/train_store_',
 fourcc = cv2.cv.CV_FOURCC('m', 'p', '4', 'v') 
 video = cv2.VideoWriter()
 
-success = video.open('atari_paper.mov', fourcc, 1, (160, 210), True)
+success = video.open('atari_paper.mov', fourcc, 2, (160, 210), True)
 
 def random_action(num_actions):
   random_action = np.zeros((1, num_actions))
@@ -77,7 +76,6 @@ def evaluate():
       #time.sleep(.5)
       # calc generated frame from t
       play_action = random_action(action_size)
-      print(hidden_2_g)
       x_2_g, hidden_2_g = sess.run([x_2, hidden_state_2],feed_dict={x_1:x_2_g, hidden_state_1:hidden_2_g, action:play_action})
       frame = np.uint8(np.minimum(np.maximum(0, x_2_g*255.0), 255))
       frame = frame[0, :, :, :]
